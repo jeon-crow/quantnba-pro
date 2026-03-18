@@ -95,5 +95,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  console.log('\u2705 QuantNBA Pro v2.1 initialized');
+  
+  // Init WebSocket for real-time scores
+  if (typeof initWebSocket === 'function') {
+    initWebSocket();
+  }
+
+  console.log('\u2705 QuantNBA Pro v2.1 initialized (WS + ML)');
 });
