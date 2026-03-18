@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: quantnba-pro
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT server:app
+    envVars:
+      - key: BDL_KEY
+        sync: false
+      - key: ODDS_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.6
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true

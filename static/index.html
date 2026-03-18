@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuantNBA Pro v2.1</title>
+<link rel="stylesheet" href="/static/css/style.css">
+<script src="/static/js/config.js"></script>
+</head><body>
+<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:12px">
+  <div class="logo-icon" style="width:48px;height:48px;border-radius:12px">
+    <svg viewBox="0 0 24 24" style="width:24px;height:24px"><circle cx="12" cy="12" r="9"/><path d="M4.9 4.9 19.1 19.1M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>
+  </div>
+  <div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;color:var(--t0)">QuantNBA Pro</div>
+  <div style="color:var(--green);font-size:10px;font-weight:700;letter-spacing:2px">v2.1 MODULAR</div>
+  <div id="loadStatus" style="font-size:11px;color:var(--t2);margin-top:8px">Checking backend...</div>
+</div>
+<script>
+(async function() {
+  const s = document.getElementById('loadStatus');
+  try {
+    const h = await apiFetch(API.health(), {}, 5000);
+    s.textContent = 'Backend connected! Loading dashboard...';
+    s.style.color = 'var(--green)';
+    setTimeout(() => { window.location.href = '/static/index_full.html'; }, 800);
+  } catch(e) {
+    s.innerHTML = 'Backend unreachable: ' + e.message +
+      '<br><br><a href="/static/index_full.html" style="color:var(--green)">Load anyway (demo mode) →</a>';
+    s.style.color = 'var(--amber)';
+  }
+})();
+</script>
+</body></html>

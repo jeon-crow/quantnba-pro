@@ -1,0 +1,15 @@
+{
+  "features": [
+    "net_rating_diff",
+    "recency_diff",
+    "injury_adj",
+    "home_flag",
+    "rest_diff",
+    "ref_pace_fast",
+    "market_momentum"
+  ],
+  "cv_accuracy": 0.6765,
+  "brier_score": 0.2006309881558868,
+  "n_training": 2000,
+  "model_type": "CalibratedLogisticRegression"
+}

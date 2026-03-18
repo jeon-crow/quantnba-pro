@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuantNBA Pro — v2.1</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- ══ TOPBAR ══ -->
+<div class="topbar">
+  <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--t1)" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M4.9 4.9 19.1 19.1M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>
+    </div>
+    <div><div class="logo-name">QuantNBA</div><div class="logo-ver">PRO v2.1</div></div>
+  </div>
+  <div class="search">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="searchInput" placeholder="Search games, players, markets…" oninput="handleSearch(this.value)">
+  </div>
+  <div class="tb-right">
+    <div class="badge-live"><div class="dot-pulse"></div><span id="liveCount">0</span> LIVE</div>
+    <button class="btn btn-alert" onclick="openAlertPanel()" title="Alerts">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      Alerts <span class="alert-dot" id="alertDot"></span>
+    </button>
+    <button class="btn btn-ghost" onclick="refreshAll()">
+      <svg id="refreshIcon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+      Sync
+    </button>
+    <button class="btn btn-primary" onclick="document.getElementById('apiOverlay').classList.add('open')">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      API Info
+    </button>
+  </div>
+</div>
+
+<!-- ══ API STATUS BAR ══ -->
+<div class="apibar">
+  <span style="font-size:8px;color:var(--t2);font-weight:700;letter-spacing:1px;text-transform:uppercase;flex-shrink:0">SOURCES</span>
+  <div class="anode idle" id="sPolymarket"><div class="adot"></div><span id="sPolymarketT">Polymarket CLOB</span></div>
+  <div class="anode idle" id="sBDL"><div class="adot"></div><span id="sBDLT">BallDontLie</span></div>
+  <div class="anode idle" id="sInjuries"><div class="adot"></div><span id="sInjuriesT">NBA Injuries</span></div>
+  <div class="anode idle" id="sOdds"><div class="adot"></div><span id="sOddsT">The Odds API</span></div>
+  <div class="anode idle" id="sReferees" onclick="fetchReferees()"><div class="adot"></div><span id="sRefereesT">Referees</span></div>
+  <div class="anode idle" id="sBacktest"><div class="adot"></div><span id="sBacktestT">Backtest</span></div>
+  <div class="anode idle" id="sCalib"><div class="adot"></div><span id="sCalibT">Calibration</span></div>
+  <div class="abar-right">
+    <span class="sync-ts" id="syncTs">Not synced</span>
+    <button class="sync-btn" id="syncBtn" onclick="refreshAll()">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+      Sync All
+    </button>
+  </div>
+</div>
+
+<!-- ══ BODY ══ -->
+<div class="body-wrap">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <nav class="nav-section">
+    <div class="nav-lbl">Overview</div>
+    <div class="nav-item active" onclick="showSection('dashboard',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>Dashboard
+    </div>
+    <div class="nav-item" onclick="showSection('live',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>Live Games
+    </div>
+
+    <div class="nav-lbl">Polymarket</div>
+    <div class="nav-item" onclick="showSection('scanner',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 1 17"/><polyline points="15 7 22 7 22 14"/></svg></span>Alpha Scanner
+    </div>
+    <div class="nav-item" onclick="showSection('positions',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></span>Positions
+      <span id="posCount" class="db db-demo" style="margin-left:auto">0</span>
+    </div>
+    <div class="nav-item alert-item" onclick="showSection('alerts',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>Alerts
+      <span id="alertCount" class="db db-demo" style="margin-left:auto;display:none">0</span>
+    </div>
+    <div class="nav-item" onclick="showSection('calibration',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><polyline points="18.5 8 13 13.5 8.5 9 3 14.5"/></svg></span>Calibration
+    </div>
+
+    <div class="nav-lbl">Analytics</div>
+    <div class="nav-item" onclick="showSection('model',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span>Model Engine
+    </div>
+    <div class="nav-item" onclick="showSection('efficiency',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Team Efficiency
+    </div>
+    <div class="nav-item" onclick="showSection('players',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Player Impact
+    </div>
+    <div class="nav-item" onclick="showSection('injuries',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Injury Impact
+    </div>
+    <div class="nav-item" onclick="showSection('referees',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg></span>Referees
+    </div>
+
+    <div class="nav-lbl">Tools</div>
+    <div class="nav-item" onclick="showSection('odds',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Odds Comparator
+    </div>
+    <div class="nav-item" onclick="showSection('kelly',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>Kelly Sizer
+    </div>
+    <div class="nav-item" onclick="showSection('backtest',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.79"/></svg></span>Backtest
+    </div>
+    <div class="nav-item" onclick="showSection('settings',this)">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>Settings
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <button class="upgrade-btn">✦ Upgrade to Pro</button>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<div class="main" id="mainContent">
+
+<!-- ══ SECTION: DASHBOARD ══ -->
+<div id="sec-dashboard">
+  <div class="g4 fade">
+    <div class="kpi g"><div class="kpi-lbl">Win Rate (30d)</div><div class="kpi-val" id="kpiWR" style="color:var(--green)">—</div><div class="kpi-sub" id="kpiWRSub">Loading…</div></div>
+    <div class="kpi a"><div class="kpi-lbl">Avg Edge vs PM</div><div class="kpi-val" id="kpiEdge" style="color:var(--amber)">—</div><div class="kpi-sub" id="kpiEdgeSub">Loading…</div></div>
+    <div class="kpi b"><div class="kpi-lbl">Open Positions</div><div class="kpi-val" id="kpiPos" style="color:var(--blue)">0</div><div class="kpi-sub" id="kpiPosSub">$0 USDC deployed</div></div>
+    <div class="kpi p"><div class="kpi-lbl">Model Brier Score</div><div class="kpi-val" id="kpiBrier" style="color:var(--purple)">—</div><div class="kpi-sub" id="kpiBrierSub">Run backtest first</div></div>
+  </div>
+  <div class="fade">
+    <div class="card-hd" style="margin-bottom:8px">
+      <div class="card-title">
+        <div class="card-icon" style="background:var(--rdim);color:var(--red)"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        Live Games <span class="db db-demo" id="liveGamesDb">DEMO</span>
+      </div>
+      <span class="card-action" onclick="showSection('live',null)">View All →</span>
+    </div>
+    <div class="g3" id="liveGamesRow"></div>
+  </div>
+  <div class="g2 fade">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--gdim);color:var(--green)"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 1 17"/><polyline points="15 7 22 7 22 14"/></svg></div>Top Alpha Signals <span class="db db-demo" id="scannerDb">DEMO</span></div>
+        <button class="card-action" onclick="showSection('scanner',null)">Full Scanner →</button>
+      </div>
+      <div id="topAlphaList"></div>
+    </div>
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--adim);color:var(--amber)"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>Recent Alerts <span class="alert-dot" id="alertDot2" style="display:none;width:6px;height:6px;background:var(--red);border-radius:50%;margin-left:4px"></span></div>
+        <button class="card-action" onclick="showSection('alerts',null)">All Alerts →</button>
+      </div>
+      <div id="alertSummary"><div style="font-size:11px;color:var(--t2);text-align:center;padding:16px">No alerts yet</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: LIVE GAMES (separate page) ══ -->
+<div id="sec-live" style="display:none">
+  <div class="card">
+    <div class="card-hd"><div class="card-title">All Games Today</div></div>
+    <div class="g3" id="liveGamesRow2"></div>
+  </div>
+</div>
+
+<!-- ══ SECTION: SCANNER ══ -->
+<div id="sec-scanner" style="display:none">
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:11px 14px;border-bottom:1px solid var(--b0);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,rgba(0,229,160,.03),transparent)">
+      <div class="card-title"><div class="card-icon" style="background:var(--gdim);color:var(--green)"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 1 17"/><polyline points="15 7 22 7 22 14"/></svg></div>Polymarket Alpha Scanner <span class="db db-demo" id="scannerDb2">DEMO</span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="font-size:9px;color:var(--t2)"><span id="pmAlphaCount">0</span> alpha · <span id="pmTotalVol">—</span> vol</div>
+        <div class="tabs">
+          <div class="tab on" onclick="filterPM('all',this)">All</div>
+          <div class="tab" onclick="filterPM('buy',this)">Buy YES</div>
+          <div class="tab" onclick="filterPM('short',this)">Buy NO</div>
+          <div class="tab" onclick="filterPM('skip',this)">Skip</div>
+        </div>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl pm-tbl">
+        <thead><tr>
+          <th style="text-align:left;padding-left:14px">Market · Factor Drivers</th>
+          <th>YES</th><th>NO</th><th>Spread</th><th>Model/Conf</th><th>Net Edge</th><th>EV/$100</th><th>fKelly</th><th>Vol</th><th>Action</th>
+        </tr></thead>
+        <tbody id="pmTbody"></tbody>
+      </table>
+    </div>
+    <div style="padding:7px 14px;background:var(--bg1);border-top:1px solid var(--b0);font-size:9px;color:var(--t2);display:flex;justify-content:space-between">
+      <span><span style="color:var(--green);font-weight:700">ENGINE</span>=7-factor model · Edge net of bid-ask spread</span>
+      <span id="pmUpdated">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: POSITIONS ══ -->
+<div id="sec-positions" style="display:none">
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--bdim);color:var(--blue)"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></div>Open Positions</div>
+        <button onclick="openAddPosition()" class="btn btn-ghost" style="font-size:10px;padding:3px 9px">+ Add</button>
+      </div>
+      <div id="positionsList"><div style="font-size:11px;color:var(--t2);text-align:center;padding:20px">No open positions.</div></div>
+    </div>
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--gdim);color:var(--green)"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>P&L Summary</div>
+      </div>
+      <div class="g3" style="gap:8px;margin-bottom:12px">
+        <div style="text-align:center;padding:10px;background:var(--bg1);border-radius:7px;border:1px solid var(--b0)"><div id="posTotalPL" class="kpi-val" style="font-size:18px;color:var(--green)">$0.00</div><div style="font-size:9px;color:var(--t2);margin-top:2px">Total P&L</div></div>
+        <div style="text-align:center;padding:10px;background:var(--bg1);border-radius:7px;border:1px solid var(--b0)"><div id="posExposure" class="kpi-val" style="font-size:18px;color:var(--blue)">$0</div><div style="font-size:9px;color:var(--t2);margin-top:2px">Exposure</div></div>
+        <div style="text-align:center;padding:10px;background:var(--bg1);border-radius:7px;border:1px solid var(--b0)"><div id="posCount2" class="kpi-val" style="font-size:18px;color:var(--amber)">0</div><div style="font-size:9px;color:var(--t2);margin-top:2px">Trades</div></div>
+      </div>
+      <div style="font-size:9px;color:var(--t2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px">Closed Trades History</div>
+      <canvas id="plChart" height="100"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: ALERTS ══ -->
+<div id="sec-alerts" style="display:none">
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--rdim);color:var(--red)"><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>Alert Feed</div>
+        <button class="card-action" onclick="AlertSystem.clear()">Clear All</button>
+      </div>
+      <div id="alertFeed"><div style="font-size:11px;color:var(--t2);text-align:center;padding:20px">No alerts yet.</div></div>
+    </div>
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--pdim);color:var(--purple)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4"/></svg></div>Alert Settings</div>
+      </div>
+      <div class="alert-toggle"><div><div style="font-weight:600;font-size:12px">Edge Alert</div><div style="font-size:10px;color:var(--t2)">Fire when net edge &gt; threshold</div></div><label class="toggle-wrap"><input type="checkbox" id="togEdge" checked><span class="toggle-slider"></span></label></div>
+      <div class="alert-toggle"><div><div style="font-weight:600;font-size:12px">Injury Change</div><div style="font-size:10px;color:var(--t2)">GTD → OUT status change</div></div><label class="toggle-wrap"><input type="checkbox" id="togInj" checked><span class="toggle-slider"></span></label></div>
+      <div class="alert-toggle"><div><div style="font-weight:600;font-size:12px">Price Movement</div><div style="font-size:10px;color:var(--t2)">PM price moves &gt;5¢ in 15min</div></div><label class="toggle-wrap"><input type="checkbox" id="togPrice" checked><span class="toggle-slider"></span></label></div>
+      <div class="alert-toggle"><div><div style="font-weight:600;font-size:12px">Browser Notifications</div><div style="font-size:10px;color:var(--t2)">Push alerts when tab inactive</div></div><label class="toggle-wrap"><input type="checkbox" id="togPush" onchange="togglePushNotifs(this)"><span class="toggle-slider"></span></label></div>
+      <div style="margin-top:10px">
+        <div style="font-size:10px;color:var(--t2);margin-bottom:5px;font-weight:500">Minimum Edge Threshold</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" class="kc-slider" id="alertThreshold" min="3" max="15" value="5" oninput="document.getElementById('alertThresholdVal').textContent=this.value+'%'">
+          <span id="alertThresholdVal" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--amber);min-width:30px">5%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: CALIBRATION ══ -->
+<div id="sec-calibration" style="display:none">
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--bdim);color:var(--blue)"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><polyline points="18.5 8 13 13.5 8.5 9 3 14.5"/></svg></div>Running Calibration <span class="db db-demo" id="calibDb">DEMO</span></div>
+        <button class="card-action" onclick="PredictionLog.exportCSV()">Export CSV</button>
+      </div>
+      <div class="calib-summary">
+        <div class="cs-item"><div class="cs-val" id="calibWR" style="color:var(--green)">—</div><div class="cs-lbl">Win Rate</div></div>
+        <div class="cs-item"><div class="cs-val" id="calibBrier" style="color:var(--amber)">—</div><div class="cs-lbl">Brier Score</div></div>
+        <div class="cs-item"><div class="cs-val" id="calibN">0</div><div class="cs-lbl">Predictions</div></div>
+      </div>
+      <canvas id="calibChart" height="160"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--gdim);color:var(--green)"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>Prediction Log</div>
+        <button class="card-action" onclick="PredictionLog.clearAll()">Clear</button>
+      </div>
+      <div id="predLogList" style="max-height:280px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: MODEL ENGINE ══ -->
+<div id="sec-model" style="display:none">
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:11px 16px;border-bottom:1px solid var(--b0);background:linear-gradient(90deg,rgba(0,229,160,.03),transparent);display:flex;align-items:center;justify-content:space-between">
+      <div class="card-title"><div class="card-icon" style="background:var(--gdim);color:var(--green)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4"/></svg></div>Unified Model Engine — 7-Factor</div>
+      <div style="font-size:9px;color:var(--t2)">NET 35% · REC 20% · INJ 15% · REF 5% · HCA 10% · RST 10% · MKT 5%</div>
+    </div>
+    <div style="padding:14px;display:grid;grid-template-columns:220px 1fr;gap:12px">
+      <div class="game-sel" id="gameSelectorList"></div>
+      <div id="engineDetail"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: EFFICIENCY ══ -->
+<div id="sec-efficiency" style="display:none">
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--bdim);color:var(--blue)"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>Team Efficiency <span class="db db-demo" id="effDb">DEMO</span></div>
+        <div class="tabs"><div class="tab on" onclick="filterTeams('all',this)">All</div><div class="tab" onclick="filterTeams('east',this)">East</div><div class="tab" onclick="filterTeams('west',this)">West</div></div>
+      </div>
+      <table class="tbl"><thead><tr><th style="text-align:left"># Team</th><th>ORTG</th><th>DRTG</th><th>NET</th><th>PACE</th></tr></thead><tbody id="effTbody"></tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--pdim);color:var(--purple)"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>Form & Recency <span class="db db-demo" id="recDb">DEMO</span></div>
+        <span style="font-size:9px;color:var(--t2);font-weight:600">ROLLING 5-GAME EWMA</span>
+      </div>
+      <canvas id="formChart" height="110" style="margin-bottom:10px"></canvas>
+      <div id="formTrends"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: PLAYERS ══ -->
+<div id="sec-players" style="display:none">
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><div class="card-icon" style="background:var(--gdim);color:var(--green)"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>Player Impact Monitor</div>
+      <div class="tabs"><div class="tab on" onclick="switchImpact('epm',this)">EPM</div><div class="tab" onclick="switchImpact('bpm',this)">BPM</div><div class="tab" onclick="switchImpact('onOff',this)">On/Off</div></div>
+    </div>
+    <div id="playerList"></div>
+  </div>
+</div>
+
+<!-- ══ SECTION: INJURIES ══ -->
+<div id="sec-injuries" style="display:none">
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--rdim);color:var(--red)"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>Injury Report <span class="db db-demo" id="injDb">DEMO</span></div>
+      </div>
+      <div id="injuryList"></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Net Rating: With vs Without</div></div>
+      <canvas id="injChart" height="160"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: REFEREES ══ -->
+<div id="sec-referees" style="display:none">
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><div class="card-icon" style="background:var(--pdim);color:var(--purple)"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg></div>Referee Assignments <span class="db db-demo" id="refDb">DEMO</span></div>
+      <div style="display:flex;gap:6px">
+        <button onclick="fetchReferees()" class="btn btn-ghost" style="font-size:10px;padding:3px 9px">Fetch Today</button>
+        <div style="font-size:9px;color:var(--t2);display:flex;align-items:center">Feeds into Model Engine (5% weight)</div>
+      </div>
+    </div>
+    <div id="refList"><div style="font-size:11px;color:var(--t2);text-align:center;padding:20px">Click "Fetch Today" to load referee assignments</div></div>
+  </div>
+</div>
+
+<!-- ══ SECTION: ODDS COMPARATOR ══ -->
+<div id="sec-odds" style="display:none">
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><div class="card-icon" style="background:var(--adim);color:var(--amber)"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>Odds Comparator <span class="db db-demo" id="oddsDb">DEMO</span></div>
+      <button onclick="toggleOddsForm()" class="btn btn-ghost" style="font-size:10px;padding:3px 9px">+ Manual Entry</button>
+    </div>
+    <div id="oddsManualForm" style="display:none;margin-bottom:10px;padding:10px;background:var(--bg1);border-radius:7px;border:1px solid var(--b0)">
+      <div style="font-size:10px;color:var(--amber);font-weight:700;margin-bottom:8px">MANUAL ODDS — American Format</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+        <input class="om-in" id="omGame" placeholder="Game (e.g. DEN vs LAC)">
+        <input class="om-in" id="omBook" placeholder="Bookmaker">
+        <input class="om-in" id="omHomeML" placeholder="Home ML (-130)">
+        <input class="om-in" id="omAwayML" placeholder="Away ML (+110)">
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="addManualOdds()" class="trade-btn tb-yes">Add</button>
+        <button onclick="toggleOddsForm()" class="trade-btn tb-skip">Cancel</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr><th style="text-align:left">Game</th><th>Book</th><th>Home ML</th><th>Away ML</th><th>Imp%</th><th>PM$</th><th>Model</th><th>vs PM</th><th>Arb?</th></tr></thead>
+        <tbody id="oddsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: KELLY SIZER ══ -->
+<div id="sec-kelly" style="display:none">
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><div class="card-icon" style="background:var(--adim);color:var(--amber)"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>Kelly Position Sizer</div>
+        <span style="font-size:9px;padding:2px 6px;background:var(--adim);color:var(--amber);border-radius:4px;font-weight:700">CALCULATOR</span>
+      </div>
+      <div style="background:var(--bg1);border:1px solid var(--b0);border-radius:8px;padding:12px">
+        <div class="kc-row"><span class="kc-lbl">Bankroll (USDC)</span><input class="kc-in" id="kcBankroll" type="number" value="1000" oninput="calcKelly()"></div>
+        <div class="kc-row"><span class="kc-lbl">Model Prob %</span><input class="kc-in" id="kcModelProb" type="number" value="67" min="1" max="99" oninput="calcKelly()"></div>
+        <div class="kc-row"><span class="kc-lbl">PM YES Price</span><input class="kc-in" id="kcYesPrice" type="number" value="0.58" min="0.01" max="0.99" step="0.01" oninput="calcKelly()"></div>
+        <div class="kc-row"><span class="kc-lbl">Bid-Ask Spread¢</span><input class="kc-in" id="kcSpread" type="number" value="0" min="0" max="20" step="1" oninput="calcKelly()"></div>
+        <div class="kc-row"><span class="kc-lbl">Kelly Fraction</span><input class="kc-slider" id="kcFrac" type="range" min="5" max="50" value="25" oninput="calcKelly()"><span id="kcFracVal" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--amber);min-width:28px;text-align:right">25%</span></div>
+        <div class="kc-res">
+          <div class="g3" style="gap:8px;margin-bottom:8px">
+            <div style="text-align:center"><div class="kpi-val" id="kcBetSize" style="font-size:16px">—</div><div style="font-size:8px;color:var(--t2);letter-spacing:.5px;margin-top:2px">BET SIZE</div></div>
+            <div style="text-align:center"><div class="kpi-val" id="kcEV" style="font-size:16px;color:var(--green)">—</div><div style="font-size:8px;color:var(--t2);letter-spacing:.5px;margin-top:2px">EXP VALUE</div></div>
+            <div style="text-align:center"><div class="kpi-val" id="kcROI" style="font-size:16px;color:var(--blue)">—</div><div style="font-size:8px;color:var(--t2);letter-spacing:.5px;margin-top:2px">EST ROI</div></div>
+          </div>
+          <div style="font-size:9px;color:var(--t2);display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px">
+            <span>Full Kelly: <span id="kcFullKelly" style="color:var(--amber);font-family:'JetBrains Mono',monospace">—</span></span>
+            <span>Net Edge: <span id="kcNetEdge" style="font-family:'JetBrains Mono',monospace">—</span></span>
+            <span>Ruin Risk: <span id="kcRuin" style="font-family:'JetBrains Mono',monospace">—</span></span>
+          </div>
+        </div>
+        <div class="kc-warn" id="kcWarn" style="background:var(--adim);color:var(--amber);border-radius:5px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Polymarket Tips</div><span style="font-size:9px;color:var(--purple);font-weight:700">QUANT RULES</span></div>
+      <div id="tradingTips"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: BACKTEST ══ -->
+<div id="sec-backtest" style="display:none">
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:11px 16px;border-bottom:1px solid var(--b0);background:linear-gradient(90deg,rgba(76,142,255,.03),transparent);display:flex;align-items:center;justify-content:space-between">
+      <div class="card-title"><div class="card-icon" style="background:var(--bdim);color:var(--blue)"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.79"/></svg></div>Backtest Engine <span class="db db-demo" id="btDb">DEMO</span></div>
+      <div style="font-size:9px;color:var(--t2)">Predictions saved to calibration log automatically</div>
+    </div>
+    <div style="padding:14px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <select class="bt-select" id="btSeason"><option value="2024">2024–25</option><option value="2023">2023–24</option><option value="2022">2022–23</option></select>
+        <select class="bt-select" id="btGames"><option value="50">50 games</option><option value="100">100 games</option><option value="200">200 games</option></select>
+        <select class="bt-select" id="btThreshold"><option value="5">Edge ≥5%</option><option value="7">Edge ≥7%</option><option value="10">Edge ≥10%</option></select>
+        <button class="bt-run" id="btRunBtn" onclick="runBacktest()">▶ Run Backtest</button>
+        <span id="btStatusTxt" style="font-size:10px;color:var(--t2);font-family:'JetBrains Mono',monospace"></span>
+      </div>
+      <div class="bt-prog" id="btProg"><div class="bt-prog-fill" id="btProgFill"></div></div>
+      <div class="g5" style="margin-bottom:12px">
+        <div style="text-align:center;padding:8px;background:var(--bg1);border-radius:7px;border:1px solid var(--b0)"><div class="kpi-val" id="btWR" style="font-size:14px;color:var(--green)">—</div><div style="font-size:8px;color:var(--t2);margin-top:2px;letter-spacing:.5px">WIN RATE</div></div>
+        <div style="text-align:center;padding:8px;background:var(--bg1);border-radius:7px;border:1px solid var(--b0)"><div class="kpi-val" id="btROI" style="font-size:14px;color:var(--blue)">—</div><div style="font-size:8px;color:var(--t2);margin-top:2px;letter-spacing:.5px">MODEL ROI</div></div>
+        <div style="text-align:center;padding:8px;background:var(--bg1);border-radius:7px;border:1px solid var(--b0)"><div class="kpi-val" id="btBrier" style="font-size:14px;color:var(--amber)">—</div><div style="font-size:8px;color:var(--t2);margin-top:2px;letter-spacing:.5px">BRIER SCORE</div></div>
+        <div style="text-align:center;padding:8px;background:var(--bg1);border-radius:7px;border:1px solid var(--b0)"><div class="kpi-val" id="btN" style="font-size:14px;color:var(--t1)">—</div><div style="font-size:8px;color:var(--t2);margin-top:2px;letter-spacing:.5px">SAMPLE N</div></div>
+        <div style="text-align:center;padding:8px;background:var(--bg1);border-radius:7px;border:1px solid var(--b0)"><div class="kpi-val" id="btEdgeN" style="font-size:14px;color:var(--purple)">—</div><div style="font-size:8px;color:var(--t2);margin-top:2px;letter-spacing:.5px">EDGE TRADES</div></div>
+      </div>
+      <div class="g2" style="gap:10px;margin-bottom:10px">
+        <div><div style="font-size:9px;color:var(--t2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Calibration Curve</div><canvas id="btCalibChart" height="130"></canvas></div>
+        <div><div style="font-size:9px;color:var(--t2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Cumulative ROI</div><canvas id="btROIChart" height="130"></canvas></div>
+      </div>
+      <div style="font-size:9px;color:var(--t2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Trade Log</div>
+      <div class="bt-log" id="btLog"><span style="color:var(--t2)">Run backtest to see trade log…</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION: SETTINGS ══ -->
+<div id="sec-settings" style="display:none">
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Model Weights</div><span style="font-size:9px;color:var(--t2)">Total must = 100%</span></div>
+      <div id="weightSliders"></div>
+      <button onclick="resetWeights()" class="btn btn-ghost" style="margin-top:10px;width:100%;justify-content:center;font-size:11px">Reset to Default</button>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Data & Storage</div></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg1);border-radius:6px;border:1px solid var(--b0)">
+          <div><div style="font-size:12px;font-weight:600">Prediction Log</div><div id="predLogSize" style="font-size:10px;color:var(--t2)">0 predictions stored</div></div>
+          <button onclick="PredictionLog.clearAll()" class="btn btn-ghost" style="font-size:10px;padding:3px 9px">Clear</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg1);border-radius:6px;border:1px solid var(--b0)">
+          <div><div style="font-size:12px;font-weight:600">Position History</div><div id="posHistSize" style="font-size:10px;color:var(--t2)">0 trades stored</div></div>
+          <button onclick="PositionTracker.clearAll()" class="btn btn-ghost" style="font-size:10px;padding:3px 9px">Clear</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg1);border-radius:6px;border:1px solid var(--b0)">
+          <div><div style="font-size:12px;font-weight:600">Manual Odds</div><div id="manualOddsSize" style="font-size:10px;color:var(--t2)">0 entries</div></div>
+          <button onclick="clearManualOdds()" class="btn btn-ghost" style="font-size:10px;padding:3px 9px">Clear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /body-wrap -->
+
+<!-- ══ API INFO MODAL ══ -->
+<div class="overlay" id="apiOverlay" onclick="closeModal(event,'apiOverlay')">
+  <div class="modal">
+    <div class="modal-hd">
+      <div>
+        <div class="modal-title">🔌 API Connections</div>
+        <div style="font-size:11px;color:var(--t2);margin-top:2px">
+          All API keys stored server-side · Configure in Colab Cell 3
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeModalId('apiOverlay')">✕</button>
+    </div>
+
+    <div class="modal-sec">
+      <div class="modal-sec-hd">
+        <span style="font-size:16px">🏀</span>
+        <span style="font-weight:700;font-size:13px">BallDontLie API</span>
+        <span class="sbadge sbadge-g">FREE</span>
+      </div>
+      <div class="modal-note">
+        Live scores · Net Rating · Recency · Backtest<br>
+        Configure key in <strong>Colab Cell 3</strong> (os.environ["BDL_KEY"])<br>
+        30 req/min · <a href="https://app.balldontlie.io" target="_blank" style="color:var(--green)">Get free key →</a>
+      </div>
+    </div>
+
+    <div class="modal-sec">
+      <div class="modal-sec-hd">
+        <span style="font-size:16px">📊</span>
+        <span style="font-weight:700;font-size:13px">Polymarket CLOB</span>
+        <span class="sbadge sbadge-g">NO KEY</span>
+      </div>
+      <div class="modal-note">
+        Auto-connect · Midpoint prices · Order book spread · 1000 req/hr<br>
+        Gamma API + CLOB API proxied through backend
+      </div>
+    </div>
+
+    <div class="modal-sec">
+      <div class="modal-sec-hd">
+        <span style="font-size:16px">🏥</span>
+        <span style="font-weight:700;font-size:13px">NBA Injury Report</span>
+        <span class="sbadge sbadge-g">NO KEY</span>
+      </div>
+      <div class="modal-note">data.nba.com official JSON · Updated 30min before tip-off</div>
+    </div>
+
+    <div class="modal-sec">
+      <div class="modal-sec-hd">
+        <span style="font-size:16px">📈</span>
+        <span style="font-weight:700;font-size:13px">The Odds API</span>
+        <span class="sbadge sbadge-g">FREE 500/mo</span>
+      </div>
+      <div class="modal-note">
+        DraftKings · FanDuel · Pinnacle<br>
+        Configure key in <strong>Colab Cell 3</strong> (os.environ["ODDS_KEY"])<br>
+        <a href="https://the-odds-api.com" target="_blank" style="color:var(--green)">Get free key →</a>
+      </div>
+    </div>
+
+    <div class="modal-sec" style="margin-bottom:0">
+      <div class="modal-sec-hd">
+        <span style="font-size:16px">⚙️</span>
+        <span style="font-weight:700;font-size:13px">Referees + Backtest</span>
+        <span class="sbadge sbadge-g">NO KEY</span>
+      </div>
+      <div class="modal-note">Referee: stats.nba.com via backend proxy · Backtest: BDL historical + 7-factor engine</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button onclick="fetchReferees();closeModalId('apiOverlay')" class="trade-btn" style="flex:1;padding:6px;background:var(--pdim);border:1px solid rgba(155,109,255,.2);color:var(--purple)">Load Referees</button>
+        <button onclick="showSection('backtest',null);closeModalId('apiOverlay')" class="trade-btn" style="flex:1;padding:6px;background:var(--bdim);border:1px solid rgba(76,142,255,.2);color:var(--blue)">Open Backtest</button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeModalId('apiOverlay')">Close</button>
+      <button class="modal-save" onclick="closeModalId('apiOverlay');refreshAll()">🔄 Sync All APIs</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD POSITION MODAL ══ -->
+<div class="overlay" id="addPosOverlay" onclick="closeModal(event,'addPosOverlay')">
+  <div class="modal" style="width:380px">
+    <div class="modal-hd">
+      <div class="modal-title">+ Add Position</div>
+      <button class="modal-close" onclick="closeModalId('addPosOverlay')">✕</button>
+    </div>
+    <div class="modal-sec">
+      <div class="modal-lbl"><span>Game / Market</span></div>
+      <input class="modal-in" id="posGame" placeholder="e.g. DEN vs LAC · Nuggets win" style="width:100%;margin-bottom:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div><div class="modal-lbl">Side</div><select class="modal-in" id="posSide"><option value="yes">YES (Buy)</option><option value="no">NO (Short)</option></select></div>
+        <div><div class="modal-lbl">Entry Price ($)</div><input class="modal-in" id="posEntryPrice" type="number" value="0.58" step="0.01" min="0.01" max="0.99"></div>
+        <div><div class="modal-lbl">Size (USDC)</div><input class="modal-in" id="posSize" type="number" value="50" min="1"></div>
+        <div><div class="modal-lbl">Model Prob %</div><input class="modal-in" id="posModelProb" type="number" value="67" min="1" max="99"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeModalId('addPosOverlay')">Cancel</button>
+      <button class="modal-save" onclick="PositionTracker.addPosition()">Add Position</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODULAR JAVASCRIPT — Load Order Matters ══ -->
+<script src="/static/js/config.js"></script>
+<script src="/static/js/data.js"></script>
+<script src="/static/js/model.js"></script>
+<script src="/static/js/systems.js"></script>
+<script src="/static/js/ui.js"></script>
+<script src="/static/js/kelly.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/backtest.js"></script>
+<script src="/static/js/app.js"></script>
+
+</body>
+</html>
