@@ -344,6 +344,104 @@ def pm_book(token_id):
 
 
 
+
+
+# ── Polymarket NBA-specific (ADDED by fix) ──
+NBA_KEYWORDS = [
+    'nba','celtics','lakers','warriors','nuggets','suns','heat','bucks',
+    'knicks','nets','sixers','76ers','mavericks','mavs','pelicans',
+    'clippers','thunder','grizzlies','raptors','bulls','pistons',
+    'cavaliers','cavs','magic','kings','spurs','jazz','blazers',
+    'timberwolves','wolves','hawks','hornets','rockets','pacers',
+    'wizards','basketball','playoff','championship','mvp','finals',
+    'boston','brooklyn','new york','philadelphia','toronto',
+    'chicago','cleveland','detroit','indiana','milwaukee',
+    'atlanta','charlotte','miami','orlando','washington',
+    'denver','minnesota','oklahoma','portland','utah',
+    'golden state','los angeles','phoenix','sacramento','san antonio',
+    'dallas','houston','memphis','new orleans',
+]
+
+def _is_nba_market(m):
+    text = (
+        (m.get("question") or "") + " " +
+        (m.get("title") or "") + " " +
+        (m.get("description") or "")
+    ).lower()
+    return any(kw in text for kw in NBA_KEYWORDS)
+
+
+@app.route("/api/pm/nba")
+def pm_nba_markets():
+    if not pm_limiter.can_call():
+        return jsonify({"error": "Rate limit"}), 429
+
+    cache_key = "pm:nba:combined"
+    now = time.time()
+    with _cache_lock:
+        if cache_key in _cache and now - _cache[cache_key]["ts"] < 60:
+            return jsonify(_cache[cache_key]["data"])
+
+    all_markets = []
+
+    for offset in [0, 100]:
+        try:
+            url = (f"{PM_GAMMA}/markets?active=true&closed=false"
+                   f"&limit=100&offset={offset}")
+            data = cached_get(f"pm:bulk:{offset}", url, ttl=60)
+            batch = data if isinstance(data, list) else data.get("markets", data.get("data", []))
+            if isinstance(batch, list):
+                all_markets.extend(batch)
+        except Exception as e:
+            logger.debug(f"[pm/nba] bulk offset={offset}: {e}")
+
+    for slug in ["nba", "nba-basketball", "basketball"]:
+        try:
+            url = f"{PM_GAMMA}/events?slug={slug}&active=true&limit=50"
+            data = cached_get(f"pm:event:{slug}", url, ttl=120)
+            events = data if isinstance(data, list) else [data] if isinstance(data, dict) else []
+            for ev in events:
+                for mkt in ev.get("markets", []):
+                    all_markets.append(mkt)
+        except Exception:
+            pass
+
+    for query in ["NBA", "basketball winner"]:
+        try:
+            url = f"{PM_GAMMA}/markets?active=true&closed=false&limit=50&_q={query}"
+            data = cached_get(f"pm:search:{query}", url, ttl=120)
+            batch = data if isinstance(data, list) else data.get("markets", [])
+            if isinstance(batch, list):
+                all_markets.extend(batch)
+        except Exception:
+            pass
+
+    nba_markets = [m for m in all_markets if _is_nba_market(m)]
+
+    seen = set()
+    unique = []
+    for m in nba_markets:
+        mid = m.get("condition_id") or m.get("id") or m.get("question", "")[:50]
+        if mid not in seen:
+            seen.add(mid)
+            unique.append(m)
+
+    result = {
+        "markets":       unique,
+        "count":         len(unique),
+        "total_scanned": len(all_markets),
+        "source":        "gamma_multi_strategy",
+        "ts":            datetime.now().isoformat(),
+    }
+
+    with _cache_lock:
+        _cache[cache_key] = {"data": result, "ts": now}
+
+    logger.info(f"[pm/nba] Found {len(unique)} NBA markets from {len(all_markets)} total")
+    return jsonify(result)
+
+
+
 @app.route("/api/espn/teamstats")
 def espn_team_stats():
     """

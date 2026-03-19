@@ -1,7 +1,8 @@
-// app.js v3.1 — Init & Orchestration | Season 2025-26
+// app.js v3.2 — Init & Orchestration | Season 2025-26
+// FIXED: removed duplicate buildLiveMarkets (now only in api.js)
 
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('\uD83D\uDE80 QuantNBA Pro v3.1 initializing... Season: 2025-26');
+  console.log('\uD83D\uDE80 QuantNBA Pro v3.2 initializing... Season: 2025-26');
 
   Chart.defaults.color = '#4A6080';
   Chart.defaults.font.family = 'Inter';
@@ -35,17 +36,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (typeof initWebSocket === 'function') initWebSocket();
 
-  // Tahap 1: team stats (nba_api dengan fallback ke ESPN)
-  try {
-    await fetchNBATeamStats();
-  } catch(e) {
-    console.warn('nba_api gagal, coba fallback ESPN...');
-    if (typeof fetchNBATeamStatsFallback === 'function') {
-      await fetchNBATeamStatsFallback();
-    }
-  }
+  // Tahap 1: team stats
+  try { await fetchNBATeamStats(); }
+  catch(e) { console.warn('Team stats gagal:', e.message); }
 
-  // Tahap 2: bangun gameData dari jadwal ESPN hari ini
+  // Tahap 2: bangun gameData dari ESPN
   const built = await buildGameDataFromESPN();
   if (built) {
     console.log('\u2705 gameData: ' + gameData.length + ' game hari ini dari ESPN');
@@ -83,41 +78,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
   });
 
-  console.log('\u2705 QuantNBA Pro v3.1 initialized | ' + gameData.length + ' games | Season 2025-26');
+  console.log('\u2705 QuantNBA Pro v3.2 initialized | ' + gameData.length + ' games | PM integrated');
 });
-
-function buildLiveMarkets() {
-  const derived = gameData.map(g => {
-    const { finalProb, F, confidence, method, mlProb } = getGameProb(g);
-    return {
-      question:     g.label + ' to win',
-      gameId:       g.id,
-      closes:       g.time,
-      yesPrice:     g.pmYesPrice || 0.5,
-      volume:       g.pmVolume   || 0,
-      liquidity:    (g.pmVolume || 0) > 50000 ? 'High'
-                  : (g.pmVolume || 0) > 20000 ? 'Medium' : 'Low',
-      modelProb:    finalProb,
-      confidence, F, method, mlProb,
-      hoursToClose: g.hoursToClose || 4,
-      spread:       g.spread || null,
-      _live:        false,
-    };
-  });
-
-  liveMarkets.forEach(lm => {
-    const idx = derived.findIndex(d => {
-      const q  = (lm.question || '').toLowerCase();
-      return d.question.toLowerCase().split(' ')
-        .slice(0, 2).some(w => q.includes(w) && w.length > 3);
-    });
-    if (idx >= 0) {
-      derived[idx].yesPrice = lm.yesPrice || derived[idx].yesPrice;
-      derived[idx].spread   = lm.spread   || derived[idx].spread;
-      derived[idx].volume   = lm.volume   || derived[idx].volume;
-      derived[idx]._live    = true;
-    }
-  });
-
-  return derived;
-}
