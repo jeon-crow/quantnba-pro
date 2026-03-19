@@ -200,7 +200,8 @@ def nba_team_stats():
         ts = leaguedashteamstats.LeagueDashTeamStats(
             season=season,
             measure_type_detailed_defense="Advanced",
-            per_mode_simple="PerGame",
+            per_mode_detailed="PerGame",
+            timeout=30,
         )
         df      = ts.get_data_frames()[0]
         results = []
@@ -340,6 +341,83 @@ def pm_book(token_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
+
+@app.route("/api/espn/teamstats")
+def espn_team_stats():
+    """
+    Ambil statistik tim dari ESPN — W/L record dari scoreboard.
+    """
+    try:
+        # Ambil standings untuk dapat W-L record
+        standings_url  = "https://site.api.espn.com/apis/v2/sports/basketball/nba/standings"
+        standings_data = cached_get("espn:standings:v2", standings_url, ttl=1800)
+
+        # Buat mapping abbr -> wins/losses dari standings
+        wl_map = {}
+        for group in standings_data.get("children", []):
+            for entry in group.get("standings", {}).get("entries", []):
+                team  = entry.get("team", {})
+                abbr  = team.get("abbreviation", "")
+                wins, losses = 0, 0
+                for stat in entry.get("stats", []):
+                    if stat.get("name") == "wins":
+                        wins = int(stat.get("value", 0))
+                    if stat.get("name") == "losses":
+                        losses = int(stat.get("value", 0))
+                if abbr:
+                    wl_map[abbr] = {"wins": wins, "losses": losses}
+
+        # Ambil daftar tim
+        teams_data = cached_get("espn:teams:full", f"{ESPN_BASE}/teams", ttl=3600)
+        results    = []
+
+        for team in (teams_data.get("sports", [{}])[0]
+                     .get("leagues", [{}])[0]
+                     .get("teams", [])):
+            ti   = team.get("team", {})
+            abbr = ti.get("abbreviation", "")
+            if not abbr:
+                continue
+
+            wl     = wl_map.get(abbr, {"wins": 0, "losses": 0})
+            wins   = wl["wins"]
+            losses = wl["losses"]
+            total  = wins + losses
+
+            # Estimasi net rating dari win rate
+            # NBA rata-rata: setiap 2.5 net rating = ~1 win lebih dari .500
+            win_pct = wins / total if total > 0 else 0.5
+            net_est = round((win_pct - 0.5) * 25, 1)
+            ortg    = round(113.5 + net_est * 0.55, 1)
+            drtg    = round(113.5 - net_est * 0.45, 1)
+
+            results.append({
+                "team_id": ti.get("id", ""),
+                "abbr":    abbr,
+                "name":    ti.get("displayName", ""),
+                "ortg":    ortg,
+                "drtg":    drtg,
+                "net":     net_est,
+                "pace":    100.5,
+                "wins":    wins,
+                "losses":  losses,
+                "source":  "espn_estimated",
+            })
+
+        # Urutkan berdasarkan net rating
+        results.sort(key=lambda x: x["net"], reverse=True)
+
+        return jsonify({
+            "teams":  results,
+            "season": SEASON,
+            "source": "espn_estimated",
+            "note":   "Net rating diestimasi dari W-L record ESPN standings",
+        })
+    except Exception as e:
+        logger.error(f"[espn/teamstats] {e}")
+        return jsonify({"error": str(e)}), 500
 
 # ── ML Model ──
 import joblib

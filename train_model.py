@@ -42,7 +42,7 @@ def fetch_real_training_data(season="2025-26", n_games=400):
     ts = leaguedashteamstats.LeagueDashTeamStats(
         season=season,
         measure_type_detailed_defense="Advanced",
-        per_mode_simple="PerGame",
+        per_mode_detailed="PerGame",
         headers=NBA_HEADERS,
     )
     team_df = ts.get_data_frames()[0]

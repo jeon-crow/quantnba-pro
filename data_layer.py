@@ -131,7 +131,7 @@ def nba_team_stats(season="2024-25"):
         ts = leaguedashteamstats.LeagueDashTeamStats(
             season=season,
             measure_type_detailed_defense="Advanced",
-            per_mode_simple="PerGame",
+            per_mode_detailed="PerGame",
             headers=NBA_HEADERS,
         )
         df = ts.get_data_frames()[0]

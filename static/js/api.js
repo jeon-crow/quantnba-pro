@@ -172,12 +172,37 @@ async function fetchESPNScoreboard() {
 }
 
 async function fetchNBATeamStats() {
+  // Coba nba_api dulu, fallback ke ESPN jika gagal
   setStatus('NBAApi', 'conn', 'nba_api · Fetching...');
   try {
+    const data = await apiFetch(API.nbaTeamStats(NBA_SEASON), {}, 20000);
+    if (data.error) throw new Error(data.error);
+    if (!data.teams?.length) throw new Error('Empty response');
+    _applyTeamStats(data.teams, data.season);
+    setStatus('NBAApi', 'live', 'nba_api · ' + data.teams.length + ' teams · ' + NBA_SEASON);
+    return;
+  } catch (e) {
+    console.warn('[nba_api] gagal, coba ESPN fallback:', e.message);
+  }
+
+  // Fallback ke ESPN estimated stats
+  try {
+    const data = await apiFetch('/api/espn/teamstats', {}, 10000);
+    if (data.error) throw new Error(data.error);
+    _applyTeamStats(data.teams, data.season);
+    setStatus('NBAApi', 'live', 'ESPN est. · ' + data.teams.length + ' teams');
+    return;
+  } catch (e) {
+    console.warn('[ESPN teamstats fallback] gagal:', e.message);
+    setStatus('NBAApi', 'err', 'Team stats · offline');
+  }
+}
+
+function _applyTeamStats(apiTeams, season) {
     const data = await apiFetch(API.nbaTeamStats(NBA_SEASON), {}, 15000);
     if (data.error) throw new Error(data.error);
 
-    const apiTeams = data.teams || [];
+    const apiTeams = apiTeams_param || [];
     apiTeams.forEach(at => {
       const t = teams.find(t => t.abbr === at.abbr);
       if (t) {

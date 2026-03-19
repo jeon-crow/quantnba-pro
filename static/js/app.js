@@ -35,8 +35,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (typeof initWebSocket === 'function') initWebSocket();
 
-  // Tahap 1: team stats dulu (dibutuhkan buildGameDataFromESPN)
-  await fetchNBATeamStats();
+  // Tahap 1: team stats (nba_api dengan fallback ke ESPN)
+  try {
+    await fetchNBATeamStats();
+  } catch(e) {
+    console.warn('nba_api gagal, coba fallback ESPN...');
+    if (typeof fetchNBATeamStatsFallback === 'function') {
+      await fetchNBATeamStatsFallback();
+    }
+  }
 
   // Tahap 2: bangun gameData dari jadwal ESPN hari ini
   const built = await buildGameDataFromESPN();
