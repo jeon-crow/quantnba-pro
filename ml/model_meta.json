@@ -16,7 +16,8 @@
   "n_training": 2000,
   "win_rate": 0.5385,
   "model_type": "CalibratedLogisticRegression",
-  "trained_at": "20260319_0948",
-  "versioned_path": "ml/nba_model_v20260319_0948.joblib",
-  "data_source": "demo"
+  "trained_at": "20260319_1249",
+  "versioned_path": "ml/nba_model_v20260319_1249.joblib",
+  "data_source": "demo",
+  "season": "2025-26"
 }

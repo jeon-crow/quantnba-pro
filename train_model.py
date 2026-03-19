@@ -36,7 +36,7 @@ FEATURES = [
 ]
 
 
-def fetch_real_training_data(season="2024-25", n_games=400):
+def fetch_real_training_data(season="2025-26", n_games=400):
     from nba_api.stats.endpoints import leaguegamefinder, leaguedashteamstats
     logger.info(f"Mengambil team stats musim {season}...")
     ts = leaguedashteamstats.LeagueDashTeamStats(
@@ -137,7 +137,7 @@ def generate_demo_data(n=2000):
     })
 
 
-def train(df, save_path="ml/nba_model.joblib"):
+def train(df, save_path="ml/nba_model.joblib", season="2025-26"):
     X = df[FEATURES].values
     y = df["home_win"].values
     logger.info(f"Training model: {len(X)} samples, {X.shape[1]} features")
@@ -172,6 +172,7 @@ def train(df, save_path="ml/nba_model.joblib"):
         "trained_at": ts,
         "versioned_path": versioned,
         "data_source": "real" if "season" in df.columns else "demo",
+        "season": season,
     }
     with open("ml/model_meta.json", "w") as f:
         json.dump(meta, f, indent=2)
@@ -182,7 +183,7 @@ def train(df, save_path="ml/nba_model.joblib"):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--demo", action="store_true")
-    parser.add_argument("--season", default="2024-25")
+    parser.add_argument("--season", default="2025-26")
     parser.add_argument("--multi", action="store_true")
     parser.add_argument("--n", type=int, default=400)
     args = parser.parse_args()
@@ -191,7 +192,7 @@ def main():
         df = generate_demo_data(2000)
         source = "demo"
     elif args.multi:
-        df = fetch_multi_season_data(["2022-23", "2023-24", "2024-25"], args.n)
+        df = fetch_multi_season_data(["2022-23", "2023-24", "2025-26"], args.n)
         source = "multi-season real"
     else:
         try:

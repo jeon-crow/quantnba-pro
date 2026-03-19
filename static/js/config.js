@@ -1,4 +1,4 @@
-// config.js v3.0
+// config.js v3.1 — Season 2025-26
 const API = {
   espnScoreboard: (date) => date ? `/api/espn/scoreboard?date=${date}` : '/api/espn/scoreboard',
   espnSummary:    (eventId) => `/api/espn/summary/${eventId}`,
@@ -8,9 +8,9 @@ const API = {
   nbaScoreboard: (date) => date ? `/api/nba/scoreboard?date=${date}` : '/api/nba/scoreboard',
   nbaGamelog:    (teamId, n) => `/api/nba/gamelog/${teamId}?n=${n || 5}`,
   nbaFeatures:   (home, away) => `/api/nba/features?home=${home}&away=${away}`,
-  pmMarkets:   () => '/api/pm/markets',
-  pmMidpoint:  (tid) => `/api/pm/midpoint/${tid}`,
-  pmBook:      (tid) => `/api/pm/book/${tid}`,
+  pmMarkets:  () => '/api/pm/markets',
+  pmMidpoint: (tid) => `/api/pm/midpoint/${tid}`,
+  pmBook:     (tid) => `/api/pm/book/${tid}`,
   mlPredict: () => '/api/ml/predict',
   mlBatch:   () => '/api/ml/batch',
   mlInfo:    () => '/api/ml/info',
@@ -23,7 +23,10 @@ let MW = JSON.parse(localStorage.getItem('modelWeights') || 'null') || {
   home: 0.10, rest: 0.10, timing: 0.05,
 };
 
-function saveWeights() { localStorage.setItem('modelWeights', JSON.stringify(MW)); }
+function saveWeights() {
+  localStorage.setItem('modelWeights', JSON.stringify(MW));
+}
+
 function resetWeights() {
   MW = { netRating: 0.35, recency: 0.20, injury: 0.15, referee: 0.05,
          home: 0.10, rest: 0.10, timing: 0.05 };
@@ -55,4 +58,4 @@ const SECTIONS = [
   'kelly','backtest','settings',
 ];
 
-console.log('✅ config.js v3.0 loaded');
+console.log('✅ config.js v3.1 loaded | Season: 2025-26');
