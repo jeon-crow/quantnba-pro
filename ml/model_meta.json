@@ -8,8 +8,15 @@
     "ref_pace_fast",
     "market_momentum"
   ],
-  "cv_accuracy": 0.6765,
-  "brier_score": 0.2006309881558868,
+  "cv_accuracy": 0.6945,
+  "cv_std": 0.0185,
+  "brier_score": 0.198112,
+  "baseline_brier": 0.248518,
+  "brier_improvement_pct": 20.3,
   "n_training": 2000,
-  "model_type": "CalibratedLogisticRegression"
+  "win_rate": 0.5385,
+  "model_type": "CalibratedLogisticRegression",
+  "trained_at": "20260319_0948",
+  "versioned_path": "ml/nba_model_v20260319_0948.joblib",
+  "data_source": "demo"
 }

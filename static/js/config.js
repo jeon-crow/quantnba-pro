@@ -1,42 +1,36 @@
-
-// ═══════════════════════════════════════
-// CONFIG — API routes point to OUR backend proxy
-// ═══════════════════════════════════════
+// config.js v3.0
 const API = {
-  // All requests go through our Flask backend — no CORS issues, no key exposure
-  bdl:       (endpoint) => `/api/bdl/${endpoint}`,
-  pmMarkets: () => '/api/pm/markets',
-  pmMidpoint:(tid) => `/api/pm/midpoint/${tid}`,
-  pmBook:    (tid) => `/api/pm/book/${tid}`,
-  injuries:  () => '/api/injuries',
-  odds:      () => '/api/odds',
-  referees:  () => '/api/referees',
-  status:    () => '/api/status',
-  health:    () => '/api/health',
+  espnScoreboard: (date) => date ? `/api/espn/scoreboard?date=${date}` : '/api/espn/scoreboard',
+  espnSummary:    (eventId) => `/api/espn/summary/${eventId}`,
+  espnInjuries:   () => '/api/espn/injuries',
+  espnStandings:  () => '/api/espn/standings',
+  nbaTeamStats:  (season) => season ? `/api/nba/teamstats?season=${season}` : '/api/nba/teamstats',
+  nbaScoreboard: (date) => date ? `/api/nba/scoreboard?date=${date}` : '/api/nba/scoreboard',
+  nbaGamelog:    (teamId, n) => `/api/nba/gamelog/${teamId}?n=${n || 5}`,
+  nbaFeatures:   (home, away) => `/api/nba/features?home=${home}&away=${away}`,
+  pmMarkets:   () => '/api/pm/markets',
+  pmMidpoint:  (tid) => `/api/pm/midpoint/${tid}`,
+  pmBook:      (tid) => `/api/pm/book/${tid}`,
+  mlPredict: () => '/api/ml/predict',
+  mlBatch:   () => '/api/ml/batch',
+  mlInfo:    () => '/api/ml/info',
+  status: () => '/api/status',
+  health: () => '/api/health',
 };
 
-// Model weights (user-configurable, persisted in localStorage)
 let MW = JSON.parse(localStorage.getItem('modelWeights') || 'null') || {
-  netRating: 0.35,
-  recency:   0.20,
-  injury:    0.15,
-  referee:   0.05,
-  home:      0.10,
-  rest:      0.10,
-  timing:    0.05
+  netRating: 0.35, recency: 0.20, injury: 0.15, referee: 0.05,
+  home: 0.10, rest: 0.10, timing: 0.05,
 };
 
-function saveWeights() {
-  localStorage.setItem('modelWeights', JSON.stringify(MW));
-}
+function saveWeights() { localStorage.setItem('modelWeights', JSON.stringify(MW)); }
 function resetWeights() {
-  MW = {netRating:0.35, recency:0.20, injury:0.15, referee:0.05,
-        home:0.10, rest:0.10, timing:0.05};
+  MW = { netRating: 0.35, recency: 0.20, injury: 0.15, referee: 0.05,
+         home: 0.10, rest: 0.10, timing: 0.05 };
   saveWeights();
   if (typeof renderWeightSliders === 'function') renderWeightSliders();
 }
 
-// ── Utility: Safe fetch with timeout ──
 async function apiFetch(url, opts = {}, timeout = 9000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeout);
@@ -45,13 +39,9 @@ async function apiFetch(url, opts = {}, timeout = 9000) {
     clearTimeout(t);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return await r.json();
-  } catch (e) {
-    clearTimeout(t);
-    throw e;
-  }
+  } catch (e) { clearTimeout(t); throw e; }
 }
 
-// ── Utility: Sanitize HTML (prevent XSS) ──
 function sanitize(str) {
   if (!str) return '';
   const div = document.createElement('div');
@@ -59,17 +49,10 @@ function sanitize(str) {
   return div.innerHTML;
 }
 
-// ── Sections ──
 const SECTIONS = [
   'dashboard','live','scanner','positions','alerts','calibration',
   'model','efficiency','players','injuries','referees','odds',
-  'kelly','backtest','settings'
+  'kelly','backtest','settings',
 ];
 
-
-// ML Model endpoints
-API.mlPredict = () => '/api/ml/predict';
-API.mlBatch   = () => '/api/ml/batch';
-API.mlInfo    = () => '/api/ml/info';
-
-console.log('✅ config.js loaded (+ ML endpoints)');
+console.log('✅ config.js v3.0 loaded');
