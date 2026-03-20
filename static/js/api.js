@@ -452,89 +452,10 @@ function estimateImpact(s) {
 // ══════════════════════════════════════════════════════════════════
 
 async function fetchPolymarket() {
-  setStatus('Polymarket', 'conn', 'Polymarket · Connecting...');
-  try {
-    const data = await apiFetch(
-      '/api/pm/markets?tag=nba&limit=100', {}, 10000
-    );
-    if (data.error) throw new Error(data.error);
-
-    const raw = Array.isArray(data) ? data : (data.markets || []);
-
-    const NBA_FILTER = [
-      'lakers','celtics','nuggets','heat','bucks','thunder','warriors',
-      'spurs','knicks','nets','sixers','clippers','mavericks','pelicans',
-      'grizzlies','rockets','pacers','wizards','bulls','pistons','cavaliers',
-      'magic','kings','jazz','blazers','timberwolves','hawks','hornets',
-      'raptors','suns','nba finals','nba champion','nba playoff',
-      'oklahoma city','golden state','los angeles lakers','boston',
-      'miami heat','milwaukee','denver','cleveland','minnesota',
-    ];
-    const NON_NBA = ['nhl','stanley cup','mlb','nfl','soccer','ufc','boxing','wnba'];
-
-    const nba = raw.filter(m => {
-      const q       = (m.question || m.title || '').toLowerCase();
-      const hasNBA    = NBA_FILTER.some(k => q.includes(k));
-      const hasNonNBA = NON_NBA.some(k => q.includes(k));
-      return hasNBA && !hasNonNBA;
-    });
-
-    if (!nba.length) throw new Error('No NBA markets — ' + raw.length + ' total');
-
-    liveMarkets = nba.map(m => {
-      let prices = m.outcomePrices;
-      if (typeof prices === 'string') {
-        try { prices = JSON.parse(prices); } catch { prices = ['0.5','0.5']; }
-      }
-      if (!Array.isArray(prices)) prices = ['0.5','0.5'];
-
-      const yesPrice = parseFloat(prices[0] || 0.5);
-      const noPrice  = parseFloat(prices[1] || 0.5);
-      const liq      = parseFloat(m.liquidity || 0);
-      const vol      = parseFloat(m.volume    || 0);
-
-      return {
-        question:      m.question || m.title || '',
-        conditionId:   m.conditionId || '',
-        yesPrice:      isNaN(yesPrice) ? 0.5 : yesPrice,
-        noPrice:       isNaN(noPrice)  ? 0.5 : noPrice,
-        volume:        vol,
-        liquidity:     liq,
-        liquidityLabel: liq > 50000 ? 'High' : liq > 10000 ? 'Medium' : 'Low',
-        spread:        null,
-        tokenIds:      m.clobTokenIds || m.clob_token_ids || [],
-        _live:         true,
-      };
-    }).filter(m => m.yesPrice > 0 && m.yesPrice < 1 && !isNaN(m.yesPrice));
-
-    liveMarkets.forEach(lm => {
-      const q = (lm.question || '').toLowerCase();
-      const match = gameData.find(g => {
-        const hf = (typeof teamName === 'function' ? teamName(g.home) : g.home).toLowerCase();
-        const af = (typeof teamName === 'function' ? teamName(g.away) : g.away).toLowerCase();
-        return hf.split(' ').some(w => w.length > 3 && q.includes(w)) ||
-               af.split(' ').some(w => w.length > 3 && q.includes(w));
-      });
-      if (match) {
-        match.pmYesPrice  = lm.yesPrice;
-        match.pmVolume    = lm.volume;
-        match.pmLiquidity = lm.liquidityLabel;
-      }
-    });
-
-    AlertSystem.checkPrice(liveMarkets);
-    renderPMTable();
-    setBadge('scannerDb',  'live');
-    setBadge('scannerDb2', 'live');
-    setStatus('Polymarket', 'live',
-      'Polymarket · ' + liveMarkets.length + ' NBA markets');
-    console.log('[PM] ' + liveMarkets.length + ' markets | harga dari outcomePrices');
-
-  } catch (e) {
-    console.warn('[PM]', e.message);
-    setStatus('Polymarket', 'err', 'Polymarket · ' + e.message.slice(0, 35));
-    renderPMTable();
-  }
+  // Alpha Scanner disembunyikan sementara
+  liveMarkets = [];
+  setStatus('Polymarket', 'warn', 'PM · Coming Soon');
+  renderPMTable();
 }
 
 

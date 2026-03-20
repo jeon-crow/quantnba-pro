@@ -179,6 +179,18 @@ function filterPM(f, el) {
 }
 
 function renderPMTable() {
+  // Alpha Scanner disembunyikan sementara — API game harian tidak tersedia
+  const container = document.getElementById('pmTableContainer') ||
+                    document.getElementById('alphaScanner');
+  if (container) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:48px 24px;color:var(--text-muted)">
+        <div style="font-size:1.5rem;margin-bottom:8px">🔧</div>
+        <div style="font-weight:600;margin-bottom:4px">Alpha Scanner — Coming Soon</div>
+        <div style="font-size:0.85rem">Polymarket game-by-game API sedang dalam pengembangan.</div>
+      </div>`;
+  }
+  return; // skip render tabel
   const markets = buildLiveMarkets();
   let data = [...markets].sort((a, b) => {
     const ea = Math.abs((a.modelProb - a.yesPrice) * 100);
