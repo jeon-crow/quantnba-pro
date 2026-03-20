@@ -89,12 +89,18 @@ function renderLiveGames() {
     const clock    = g._clock || '';
     const period   = g._period || 0;
 
+    // Nama lengkap tim
+    const homeFull  = (typeof teamName === 'function') ? teamName(g.home) : g.home;
+    const awayFull  = (typeof teamName === 'function') ? teamName(g.away) : g.away;
+    const homeShort = (typeof teamShort === 'function') ? teamShort(g.home) : g.home;
+    const awayShort = (typeof teamShort === 'function') ? teamShort(g.away) : g.away;
+
     let statusBadge = '';
     if (isLive) {
       statusBadge = '<span style="color:var(--red);font-weight:700;font-size:9px;' +
         'display:flex;align-items:center;gap:3px">' +
         '<div class="dot-pulse" style="width:5px;height:5px"></div>' +
-        'Q' + period + (clock ? ' ' + clock : '') + '</span>';
+        'LIVE Q' + period + (clock ? ' ' + clock : '') + '</span>';
     } else if (isFinal) {
       statusBadge = '<span style="font-size:9px;color:var(--t2)">Final</span>';
     } else {
@@ -107,16 +113,28 @@ function renderLiveGames() {
     return '<div class="game-card ' + borderClass + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
         statusBadge +
-        '<span style="font-size:10px;color:var(--t2)">' + sanitize(g.away) + ' @ ' + sanitize(g.home) + '</span>' +
+        '<span style="font-size:9px;color:var(--t2);font-weight:500">' +
+          sanitize(awayFull) + ' vs ' + sanitize(homeFull) +
+        '</span>' +
       '</div>' +
-      '<div class="score-row"><span class="t-abbr">' + sanitize(g.away) + '</span>' +
-        '<span class="t-score" style="color:var(--t1)">' + as + '</span></div>' +
-      '<div class="score-row"><span class="t-abbr" style="color:var(--green)">' + sanitize(g.home) + '</span>' +
-        '<span class="t-score">' + hs + '</span></div>' +
-      '<div class="prob-bar">' +
+      '<div class="score-row">' +
+        '<div>' +
+          '<div class="t-abbr" style="color:var(--t1)">' + sanitize(g.away) + '</div>' +
+          '<div style="font-size:9px;color:var(--t2);margin-top:1px">' + sanitize(awayFull) + '</div>' +
+        '</div>' +
+        '<span class="t-score" style="color:var(--t1)">' + as + '</span>' +
+      '</div>' +
+      '<div class="score-row">' +
+        '<div>' +
+          '<div class="t-abbr" style="color:var(--green)">' + sanitize(g.home) + '</div>' +
+          '<div style="font-size:9px;color:var(--t2);margin-top:1px">' + sanitize(homeFull) + '</div>' +
+        '</div>' +
+        '<span class="t-score">' + hs + '</span>' +
+      '</div>' +
+      '<div class="prob-bar" style="margin-top:10px">' +
         '<div class="pb-lbl">' +
-          '<span style="color:' + probColor + '">' + sanitize(g.home) + ' ' + prob + '%</span>' +
-          '<span>' + sanitize(g.away) + ' ' + (100-prob) + '%</span>' +
+          '<span style="color:' + probColor + '">' + sanitize(homeShort) + ' ' + prob + '%</span>' +
+          '<span>' + sanitize(awayShort) + ' ' + (100-prob) + '%</span>' +
         '</div>' +
         '<div class="pb-track"><div class="pb-fill" style="width:' + prob +
           '%;background:linear-gradient(90deg,var(--green),var(--blue))"></div></div>' +
@@ -288,7 +306,7 @@ function renderGameSelector() {
     const confColor = confidence >= 70 ? 'var(--green)' : confidence >= 50 ? 'var(--amber)' : 'var(--red)';
     return '<div class="gsi' + (i === selectedGame ? ' active' : '') + '" onclick="selectGame(' + i + ')">' +
       '<div style="display:flex;justify-content:space-between">' +
-        '<span class="gsi-matchup">' + g.home + ' vs ' + g.away + '</span>' +
+        '<span class="gsi-matchup">' + (typeof teamName === 'function' ? teamName(g.home) : g.home) + ' vs ' + (typeof teamName === 'function' ? teamName(g.away) : g.away) + '</span>' +
         '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;font-weight:700;' +
           'color:' + probColor + '">' + prob + '%</span></div>' +
       '<div class="gsi-meta">' +

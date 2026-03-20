@@ -1,4 +1,56 @@
 
+
+// Mapping abbreviasi ke nama lengkap tim NBA
+const NBA_TEAM_NAMES = {
+  'ATL': 'Atlanta Hawks',
+  'BOS': 'Boston Celtics',
+  'BKN': 'Brooklyn Nets',
+  'CHA': 'Charlotte Hornets',
+  'CHI': 'Chicago Bulls',
+  'CLE': 'Cleveland Cavaliers',
+  'DAL': 'Dallas Mavericks',
+  'DEN': 'Denver Nuggets',
+  'DET': 'Detroit Pistons',
+  'GSW': 'Golden State Warriors',
+  'HOU': 'Houston Rockets',
+  'IND': 'Indiana Pacers',
+  'LAC': 'LA Clippers',
+  'LAL': 'Los Angeles Lakers',
+  'MEM': 'Memphis Grizzlies',
+  'MIA': 'Miami Heat',
+  'MIL': 'Milwaukee Bucks',
+  'MIN': 'Minnesota Timberwolves',
+  'NOP': 'New Orleans Pelicans',
+  'NO':  'New Orleans Pelicans',
+  'NYK': 'New York Knicks',
+  'NY':  'New York Knicks',
+  'OKC': 'Oklahoma City Thunder',
+  'ORL': 'Orlando Magic',
+  'PHI': 'Philadelphia 76ers',
+  'PHX': 'Phoenix Suns',
+  'POR': 'Portland Trail Blazers',
+  'SAC': 'Sacramento Kings',
+  'SAS': 'San Antonio Spurs',
+  'SA':  'San Antonio Spurs',
+  'TOR': 'Toronto Raptors',
+  'UTA': 'Utah Jazz',
+  'UTAH': 'Utah Jazz',
+  'WAS': 'Washington Wizards',
+  'WSH': 'Washington Wizards',
+};
+
+// Helper: ambil nama lengkap atau fallback ke abbr
+function teamName(abbr) {
+  return NBA_TEAM_NAMES[abbr] || abbr;
+}
+
+// Helper: nama pendek (tanpa kota)
+function teamShort(abbr) {
+  const full = NBA_TEAM_NAMES[abbr] || abbr;
+  const parts = full.split(' ');
+  return parts[parts.length - 1];
+}
+
 // ═══════════════════════════════════════
 // DATA LAYER — Static fallback + mutable state
 // Updated by API calls at runtime
