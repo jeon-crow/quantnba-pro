@@ -780,12 +780,27 @@ def pm_nba_games():
                 except: prices = ['0.5','0.5']
 
             # Map outcomes ke away/home price
-            away_short = away_name.split()[-1].lower()
-            home_short = home_name.split()[-1].lower()
-            away_idx, home_idx = 0, 1
+            # Polymarket slug: nba-{away}-{home} → outcomes[0]=away tim, outcomes[1]=home tim
+            # Tapi perlu verify dengan nama tim
+            away_words = away_name.lower().split()
+            home_words = home_name.lower().split()
+
+            away_idx, home_idx = None, None
             for i, oc in enumerate(outcomes):
-                if away_short in oc.lower(): away_idx = i
-                elif home_short in oc.lower(): home_idx = i
+                oc_l = oc.lower()
+                # Cek semua kata nama tim (hindari false positive kata pendek)
+                if any(w in oc_l for w in away_words if len(w) > 3):
+                    away_idx = i
+                elif any(w in oc_l for w in home_words if len(w) > 3):
+                    home_idx = i
+
+            # Fallback jika tidak match: pakai posisi
+            if away_idx is None and home_idx is None:
+                away_idx, home_idx = 0, 1
+            elif away_idx is None:
+                away_idx = 1 - home_idx
+            elif home_idx is None:
+                home_idx = 1 - away_idx
 
             away_price = float(prices[away_idx]) if len(prices) > away_idx else 0.5
             home_price = float(prices[home_idx]) if len(prices) > home_idx else 0.5
