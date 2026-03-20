@@ -939,11 +939,20 @@ def espn_schedule():
                 if ev_wita > today_wita and not next_date_str:
                     next_date_str = ev_wita.strftime('%Y%m%d')
 
+        # Filter hanya hari ini WITA + besok WITA
+        tomorrow_wita = (today_wita + timedelta(days=1)).strftime('%Y-%m-%d')
+        today_wita_str = today_wita.strftime('%Y-%m-%d')
+
+        filtered = [ev for ev in all_events
+                    if ev.get('_witaDate','') in (today_wita_str, tomorrow_wita)]
+
         return jsonify({
-            'events':     all_events,
+            'events':     filtered,
             'today':      today_str,
             'next':       next_date_str,
-            'totalGames': len(all_events),
+            'totalGames': len(filtered),
+            'todayWITA':  today_wita_str,
+            'tomorrowWITA': tomorrow_wita,
         })
     except Exception as e:
         logger.error(f"[schedule] {e}")
