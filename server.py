@@ -882,6 +882,54 @@ def pm_nba_games():
         return jsonify({'error': str(e)}), 500
 
 
+
+@app.route('/api/espn/schedule')
+def espn_schedule():
+    """Return game hari ini + hari berikutnya yang ada game (maks 4 hari ke depan)."""
+    try:
+        from datetime import datetime, timezone, timedelta
+        ET = timezone(timedelta(hours=-4))
+
+        # Fetch hari ini
+        today_str  = datetime.now(ET).strftime('%Y%m%d')
+        today_data = cached_get(f'espn:scoreboard:{today_str}',
+                                f'{ESPN_BASE}/scoreboard?dates={today_str}', ttl=20)
+        today_events = today_data.get('events', [])
+
+        # Cari hari berikutnya yang ada game
+        next_events = []
+        next_date_str = ''
+        for d in range(1, 5):
+            next_date = (datetime.now(ET) + timedelta(days=d)).strftime('%Y%m%d')
+            try:
+                next_data = cached_get(f'espn:scoreboard:{next_date}',
+                                       f'{ESPN_BASE}/scoreboard?dates={next_date}', ttl=300)
+                if next_data.get('events'):
+                    next_events    = next_data['events']
+                    next_date_str  = next_date
+                    break
+            except:
+                pass
+
+        # Deduplicate by event id
+        seen = set()
+        all_events = []
+        for ev in today_events + next_events:
+            eid = ev.get('id','')
+            if eid not in seen:
+                seen.add(eid)
+                all_events.append(ev)
+
+        return jsonify({
+            'events':     all_events,
+            'today':      today_str,
+            'next':       next_date_str,
+            'totalGames': len(all_events),
+        })
+    except Exception as e:
+        logger.error(f"[schedule] {e}")
+        return jsonify({'error': str(e)}), 500
+
 _poller_thread = threading.Thread(target=background_score_poller, daemon=True)
 _poller_thread.start()
 

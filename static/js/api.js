@@ -113,50 +113,24 @@ async function checkBackendStatus() {
 
 async function buildGameDataFromESPN() {
   try {
-    // Hitung tanggal ET hari ini dan besok
-    const _etNow  = new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
-    const _fmt    = d => d.getFullYear() +
-                         String(d.getMonth()+1).padStart(2,'0') +
-                         String(d.getDate()).padStart(2,'0');
-    const _isoFmt = d => d.getFullYear() + '-' +
-                         String(d.getMonth()+1).padStart(2,'0') + '-' +
-                         String(d.getDate()).padStart(2,'0');
-    const _todayS   = _fmt(_etNow);
-    const _todayISO = _isoFmt(_etNow);
+    // Fetch schedule (hari ini + besok) dari backend
+    const schedData  = await apiFetch(API.espnSchedule(), {}, 15000);
+    if (schedData.error) throw new Error(schedData.error);
 
-    // Fetch hari ini
-    const dataToday = await apiFetch(
-      API.espnScoreboard() + '?dates=' + _todayS, {}, 10000
-    ).catch(() => ({}));
+    const todayStr  = schedData.today  || '';
+    const nextStr   = schedData.next   || '';
+    // Konversi YYYYMMDD ke YYYY-MM-DD
+    const toISO     = s => s ? s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8) : '';
+    const todayISO  = toISO(todayStr);
+    const nextISO   = toISO(nextStr);
 
-    // Cari hari berikutnya yang ada game (maks 4 hari)
-    let dataTmr = {}, tmrISO = '';
-    for (let d = 1; d <= 4; d++) {
-      const nextD = new Date(_etNow);
-      nextD.setDate(_etNow.getDate() + d);
-      try {
-        const nd = await apiFetch(
-          API.espnScoreboard() + '?dates=' + _fmt(nextD), {}, 10000
-        );
-        if (nd?.events?.length) {
-          dataTmr = nd;
-          tmrISO  = _isoFmt(nextD);
-          console.log('[ESPN] Besok: ' + tmrISO + ' (' + nd.events.length + ' games)');
-          break;
-        }
-      } catch(e) {}
-    }
-
-    // Gabung events dengan label tanggal, deduplicate by id
-    const seenIds  = new Set();
-    const allEvents = [
-      ...(dataToday.events || []).map(ev => ({...ev, _dateLabel: _todayISO, _isToday: true})),
-      ...(dataTmr.events   || []).map(ev => ({...ev, _dateLabel: tmrISO,    _isToday: false})),
-    ].filter(ev => {
-      const id = ev.id || (ev.competitions?.[0]?.competitors?.map(c=>c.team?.abbreviation).join('-'));
-      if (seenIds.has(id)) return false;
-      seenIds.add(id);
-      return true;
+    const allEvents = (schedData.events || []).map(ev => {
+      const evDate  = ev.date ? new Date(ev.date) : null;
+      const evDateET = evDate
+        ? evDate.toLocaleDateString('en-CA', {timeZone:'America/New_York'})
+        : todayISO;
+      const isToday = evDateET === todayISO;
+      return {...ev, _dateLabel: isToday ? todayISO : nextISO, _isToday: isToday};
     });
 
     if (!allEvents.length) {
