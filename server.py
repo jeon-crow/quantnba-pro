@@ -715,8 +715,22 @@ def pm_nba_games():
         today_et = datetime.now(ET).strftime('%Y-%m-%d')
         yest_et  = (datetime.now(ET) - timedelta(days=1)).strftime('%Y-%m-%d')
 
-        espn_data = cached_get('espn:scoreboard:today', f'{ESPN_BASE}/scoreboard', ttl=20)
-        events    = espn_data.get('events', [])
+        # Fetch hari ini + besok jika diminta
+        days = int(request.args.get('days', 1))
+        from datetime import datetime, timezone, timedelta
+        ET = timezone(timedelta(hours=-4))
+
+        all_events = []
+        for d in range(days):
+            date_str = (datetime.now(ET) + timedelta(days=d)).strftime('%Y%m%d')
+            cache_key = f'espn:scoreboard:{date_str}'
+            url       = f'{ESPN_BASE}/scoreboard?dates={date_str}'
+            try:
+                day_data = cached_get(cache_key, url, ttl=20 if d==0 else 300)
+                all_events += day_data.get('events', [])
+            except:
+                pass
+        events = all_events
 
         results = []
         for ev in events:

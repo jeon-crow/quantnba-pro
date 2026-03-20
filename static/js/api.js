@@ -454,7 +454,10 @@ function estimateImpact(s) {
 async function fetchPolymarket() {
   setStatus('Polymarket', 'conn', 'Polymarket · Connecting...');
   try {
-    const data = await apiFetch('/api/pm/nba-games', {}, 15000);
+    // Pakai fetch langsung tanpa AbortController agar tidak di-cancel refreshAll
+    const _pmRes = await fetch('/api/pm/nba-games?days=2');
+    if (!_pmRes.ok) throw new Error('HTTP ' + _pmRes.status);
+    const data = await _pmRes.json();
     if (data.error) throw new Error(data.error);
 
     const games   = data.games || [];
