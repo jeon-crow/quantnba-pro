@@ -452,10 +452,65 @@ function estimateImpact(s) {
 // ══════════════════════════════════════════════════════════════════
 
 async function fetchPolymarket() {
-  // Alpha Scanner disembunyikan sementara
-  liveMarkets = [];
-  setStatus('Polymarket', 'warn', 'PM · Coming Soon');
-  renderPMTable();
+  setStatus('Polymarket', 'conn', 'Polymarket · Connecting...');
+  try {
+    const data = await apiFetch('/api/pm/nba-games', {}, 15000);
+    if (data.error) throw new Error(data.error);
+
+    const games   = data.games || [];
+    const matched = games.filter(g => g.pm_found);
+
+    // Update gameData dengan harga Polymarket
+    matched.forEach(g => {
+      const awayShort = g.away.split(' ').pop().toLowerCase();
+      const homeShort = g.home.split(' ').pop().toLowerCase();
+      const gd = gameData.find(gd => {
+        const h = (typeof teamName==='function' ? teamName(gd.home) : gd.home).toLowerCase();
+        const a = (typeof teamName==='function' ? teamName(gd.away) : gd.away).toLowerCase();
+        return h.includes(homeShort) || a.includes(awayShort);
+      });
+      if (gd) {
+        gd.pmAwayPrice = g.away_price;
+        gd.pmHomePrice = g.home_price;
+        gd.pmVolume    = g.volume;
+        gd.pmLiquidity = g.liquidity > 50000 ? 'High'
+                       : g.liquidity > 10000 ? 'Medium' : 'Low';
+      }
+    });
+
+    // Build liveMarkets untuk Alpha Scanner
+    liveMarkets = matched.map(g => ({
+      question:       g.away + ' vs ' + g.home + ' to win',
+      away:           g.away,
+      home:           g.home,
+      yesPrice:       g.away_price,
+      noPrice:        g.home_price,
+      awayPrice:      g.away_price,
+      homePrice:      g.home_price,
+      volume:         g.volume,
+      liquidity:      g.liquidity,
+      liquidityLabel: g.liquidity > 50000 ? 'High'
+                    : g.liquidity > 10000 ? 'Medium' : 'Low',
+      status:         g.status,
+      period:         g.period,
+      clock:          g.clock,
+      pm_found:       true,
+      _live:          true,
+    }));
+
+    AlertSystem.checkPrice(liveMarkets);
+    renderPMTable();
+    setBadge('scannerDb',  'live');
+    setBadge('scannerDb2', 'live');
+    setStatus('Polymarket', 'live',
+      'Polymarket · ' + matched.length + ' NBA games');
+    console.log('[PM] ' + matched.length + '/' + games.length + ' games matched');
+
+  } catch(e) {
+    console.warn('[PM]', e.message);
+    setStatus('Polymarket', 'err', 'PM · ' + e.message.slice(0,30));
+    renderPMTable();
+  }
 }
 
 

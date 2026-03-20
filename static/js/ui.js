@@ -178,19 +178,38 @@ function filterPM(f, el) {
   renderPMTable();
 }
 
+
+function buildLiveMarkets() {
+  // Gabung liveMarkets (dari Polymarket) dengan modelProb dari gameData
+  return liveMarkets.map(m => {
+    const awayShort = (m.away || '').split(' ').pop().toLowerCase();
+    const homeShort = (m.home || '').split(' ').pop().toLowerCase();
+
+    // Cari modelProb dari gameData
+    let modelProb = m.modelProb || 0.5;
+    let confidence = m.confidence || null;
+    const gd = gameData.find(g => {
+      const h = (typeof teamName==='function' ? teamName(g.home) : g.home).toLowerCase();
+      const a = (typeof teamName==='function' ? teamName(g.away) : g.away).toLowerCase();
+      return h.includes(homeShort) || a.includes(awayShort);
+    });
+    if (gd) {
+      modelProb  = gd.modelProb  || gd.prob  || modelProb;
+      confidence = gd.confidence || gd.conf  || confidence;
+    }
+
+    return {
+      ...m,
+      modelProb:      modelProb,
+      confidence:     confidence,
+      liquidityLabel: m.liquidityLabel || (m.liquidity > 50000 ? 'High'
+                    : m.liquidity > 10000 ? 'Medium' : 'Low'),
+      closes:         m.clock || m.status || '',
+    };
+  });
+}
+
 function renderPMTable() {
-  // Alpha Scanner disembunyikan sementara — API game harian tidak tersedia
-  const container = document.getElementById('pmTableContainer') ||
-                    document.getElementById('alphaScanner');
-  if (container) {
-    container.innerHTML = `
-      <div style="text-align:center;padding:48px 24px;color:var(--text-muted)">
-        <div style="font-size:1.5rem;margin-bottom:8px">🔧</div>
-        <div style="font-weight:600;margin-bottom:4px">Alpha Scanner — Coming Soon</div>
-        <div style="font-size:0.85rem">Polymarket game-by-game API sedang dalam pengembangan.</div>
-      </div>`;
-  }
-  return; // skip render tabel
   const markets = buildLiveMarkets();
   let data = [...markets].sort((a, b) => {
     const ea = Math.abs((a.modelProb - a.yesPrice) * 100);
@@ -251,10 +270,10 @@ function renderPMTable() {
       '<td style="padding-left:14px"><div class="pm-q">' + sanitize(m.question) + liveTag +
         '<span class="alpha ' + abCls + '">' + abLbl + '</span></div>' +
         '<div class="pm-meta"><span style="color:' + liqColor + '">\u25CF</span>' +
-          '<span>' + m.liquidity + '</span><span>\u00B7</span>' +
-          '<span>' + sanitize(m.closes) + '</span></div></td>' +
+          '<span>' + (m.liquidityLabel || m.liquidity) + '</span><span>\u00B7</span>' +
+          '<span>' + sanitize(m.clock || m.status || m.closes || '') + '</span></div></td>' +
       '<td><span class="yp">$' + m.yesPrice.toFixed(2) + '</span></td>' +
-      '<td><span class="np">$' + (1 - m.yesPrice).toFixed(2) + '</span></td>' +
+      '<td><span class="np">$' + (m.noPrice !== undefined ? m.noPrice : (1-m.yesPrice)).toFixed(2) + '</span></td>' +
       '<td><span class="' + spreadCls + '" style="font-family:\'JetBrains Mono\',monospace;' +
         'font-size:11px">' + spreadStr + '</span></td>' +
       '<td style="text-align:right"><span class="mp">' + (m.modelProb * 100).toFixed(0) + '%</span>' +

@@ -691,6 +691,124 @@ def background_score_poller():
         time.sleep(20)
 
 
+
+# ── Polymarket NBA Games (ESPN slug matching) ─────────────────────────────────
+ESPN_TO_PM_ABBR = {
+    'wsh':'was','sa':'sas','utah':'uta','no':'nop',
+    'lal':'lal','lac':'lac','cle':'cle','chi':'chi',
+    'phx':'phx','mil':'mil','phi':'phi','sac':'sac',
+    'orl':'orl','cha':'cha','det':'det','mia':'mia',
+    'bos':'bos','bkn':'bkn','nyk':'nyk','ind':'ind',
+    'atl':'atl','tor':'tor','okc':'okc','den':'den',
+    'min':'min','por':'por','gsw':'gs','dal':'dal',
+    'mem':'mem','hou':'hou','nop':'nop',
+}
+
+def _espn_to_pm(abbr):
+    return ESPN_TO_PM_ABBR.get(abbr.lower(), abbr.lower())
+
+@app.route('/api/pm/nba-games')
+def pm_nba_games():
+    try:
+        from datetime import datetime, timezone, timedelta
+        ET       = timezone(timedelta(hours=-4))
+        today_et = datetime.now(ET).strftime('%Y-%m-%d')
+        yest_et  = (datetime.now(ET) - timedelta(days=1)).strftime('%Y-%m-%d')
+
+        espn_data = cached_get('espn:scoreboard:today', f'{ESPN_BASE}/scoreboard', ttl=20)
+        events    = espn_data.get('events', [])
+
+        results = []
+        for ev in events:
+            comps     = ev.get('competitions', [{}])[0]
+            teams     = comps.get('competitors', [])
+            home_t    = next((t for t in teams if t.get('homeAway')=='home'), {})
+            away_t    = next((t for t in teams if t.get('homeAway')=='away'), {})
+            home_abbr = _espn_to_pm(home_t.get('team',{}).get('abbreviation',''))
+            away_abbr = _espn_to_pm(away_t.get('team',{}).get('abbreviation',''))
+            home_name = home_t.get('team',{}).get('displayName','')
+            away_name = away_t.get('team',{}).get('displayName','')
+            status    = comps.get('status',{}).get('type',{}).get('name','')
+            period    = comps.get('status',{}).get('period', 0)
+            clock     = comps.get('status',{}).get('displayClock','')
+
+            pm_data = None
+            for date in [today_et, yest_et]:
+                slug = f"nba-{away_abbr}-{home_abbr}-{date}"
+                try:
+                    data  = cached_get(f"pm:game:{slug}",
+                                f"https://gamma-api.polymarket.com/events?slug={slug}",
+                                ttl=45)
+                    items = data if isinstance(data, list) else []
+                    if items:
+                        pm_data = items[0]
+                        break
+                except:
+                    pass
+
+            if not pm_data:
+                results.append({'away':away_name,'home':home_name,
+                    'away_abbr':away_abbr,'home_abbr':home_abbr,
+                    'status':status,'period':period,'clock':clock,
+                    'pm_found':False})
+                continue
+
+            # Cari market moneyline (bukan Over/Under)
+            ml_mkt = None
+            for mk in pm_data.get('markets', []):
+                oc = mk.get('outcomes','[]')
+                if isinstance(oc, str):
+                    try: oc = json.loads(oc)
+                    except: oc = []
+                if (len(oc)==2 and
+                    'over'  not in str(oc).lower() and
+                    'under' not in str(oc).lower() and
+                    'yes'   not in str(oc).lower()):
+                    ml_mkt = (oc, mk)
+                    break
+
+            if not ml_mkt:
+                results.append({'away':away_name,'home':home_name,
+                    'status':status,'period':period,'clock':clock,
+                    'pm_found':False})
+                continue
+
+            outcomes, mk = ml_mkt
+            prices = mk.get('outcomePrices','[]')
+            if isinstance(prices, str):
+                try: prices = json.loads(prices)
+                except: prices = ['0.5','0.5']
+
+            # Map outcomes ke away/home price
+            away_short = away_name.split()[-1].lower()
+            home_short = home_name.split()[-1].lower()
+            away_idx, home_idx = 0, 1
+            for i, oc in enumerate(outcomes):
+                if away_short in oc.lower(): away_idx = i
+                elif home_short in oc.lower(): home_idx = i
+
+            away_price = float(prices[away_idx]) if len(prices) > away_idx else 0.5
+            home_price = float(prices[home_idx]) if len(prices) > home_idx else 0.5
+
+            results.append({
+                'away': away_name, 'home': home_name,
+                'away_abbr': away_abbr, 'home_abbr': home_abbr,
+                'status': status, 'period': period, 'clock': clock,
+                'pm_found':   True,
+                'away_price': away_price,
+                'home_price': home_price,
+                'outcomes':   outcomes,
+                'volume':     float(mk.get('volume', 0) or 0),
+                'liquidity':  float(pm_data.get('liquidity', 0) or 0),
+                'slug':       f"nba-{away_abbr}-{home_abbr}-{today_et}",
+            })
+
+        return jsonify({'games': results, 'count': len(results)})
+    except Exception as e:
+        logger.error(f"[PM Games] {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 _poller_thread = threading.Thread(target=background_score_poller, daemon=True)
 _poller_thread.start()
 
