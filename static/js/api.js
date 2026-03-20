@@ -113,96 +113,87 @@ async function checkBackendStatus() {
 
 async function buildGameDataFromESPN() {
   try {
-    // Fetch hari ini + besok
-    // Fetch hari ini + cari hari berikutnya yang ada game (maks 4 hari)
-    const _etNow = new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
-    const _fmt   = d => d.getFullYear() +
-                        String(d.getMonth()+1).padStart(2,'0') +
-                        String(d.getDate()).padStart(2,'0');
+    // Hitung tanggal ET hari ini dan besok
+    const _etNow  = new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+    const _fmt    = d => d.getFullYear() +
+                         String(d.getMonth()+1).padStart(2,'0') +
+                         String(d.getDate()).padStart(2,'0');
     const _isoFmt = d => d.getFullYear() + '-' +
                          String(d.getMonth()+1).padStart(2,'0') + '-' +
                          String(d.getDate()).padStart(2,'0');
-    const _todayS = _fmt(_etNow);
+    const _todayS   = _fmt(_etNow);
     const _todayISO = _isoFmt(_etNow);
 
-    // Fetch hari ini dulu
-    const dataTodayRaw = await Promise.resolve(
-      apiFetch(API.espnScoreboard() + '?dates=' + _todayS, {}, 10000).catch(()=>({}))
-    );
-    const dataToday = dataTodayRaw || {};
+    // Fetch hari ini
+    const dataToday = await apiFetch(
+      API.espnScoreboard() + '?dates=' + _todayS, {}, 10000
+    ).catch(() => ({}));
 
-    // Cari hari berikutnya yang punya game (maks 4 hari ke depan)
-    let dataTmr = {};
-    let tmrISO  = '';
+    // Cari hari berikutnya yang ada game (maks 4 hari)
+    let dataTmr = {}, tmrISO = '';
     for (let d = 1; d <= 4; d++) {
       const nextD = new Date(_etNow);
       nextD.setDate(_etNow.getDate() + d);
-      const nextS   = _fmt(nextD);
-      const nextISO = _isoFmt(nextD);
       try {
-        const nextData = await apiFetch(API.espnScoreboard() + '?dates=' + nextS, {}, 10000);
-        if (nextData?.events?.length) {
-          dataTmr = nextData;
-          tmrISO  = nextISO;
-          console.log('[ESPN] Game besok ditemukan: ' + nextISO + ' (' + nextData.events.length + ' games)');
+        const nd = await apiFetch(
+          API.espnScoreboard() + '?dates=' + _fmt(nextD), {}, 10000
+        );
+        if (nd?.events?.length) {
+          dataTmr = nd;
+          tmrISO  = _isoFmt(nextD);
+          console.log('[ESPN] Besok: ' + tmrISO + ' (' + nd.events.length + ' games)');
           break;
         }
       } catch(e) {}
     }
 
+    // Gabung events dengan label tanggal, deduplicate by id
+    const seenIds  = new Set();
     const allEvents = [
       ...(dataToday.events || []).map(ev => ({...ev, _dateLabel: _todayISO, _isToday: true})),
       ...(dataTmr.events   || []).map(ev => ({...ev, _dateLabel: tmrISO,    _isToday: false})),
-    ];
-    const data = { ...dataToday, events: allEvents };
-    if (data.error || !data.events?.length) {
-      console.warn('[ESPN] Tidak ada game hari ini, pakai data fallback');
+    ].filter(ev => {
+      const id = ev.id || (ev.competitions?.[0]?.competitors?.map(c=>c.team?.abbreviation).join('-'));
+      if (seenIds.has(id)) return false;
+      seenIds.add(id);
+      return true;
+    });
+
+    if (!allEvents.length) {
+      console.warn('[ESPN] Tidak ada game');
       return false;
     }
 
     const newGameData = [];
 
-    for (const event of data.events) {
-      const comp        = event.competitions?.[0] || {};
+    for (const event of allEvents) {
+      const comp     = event.competitions?.[0];
+      if (!comp) continue;
       const competitors = comp.competitors || [];
-      const home        = competitors.find(c => c.homeAway === 'home') || {};
-      const away        = competitors.find(c => c.homeAway === 'away') || {};
-      const status      = event.status || {};
-      const state       = status.type?.state || 'pre';
+      const homeTeam = competitors.find(c => c.homeAway === 'home') || {};
+      const awayTeam = competitors.find(c => c.homeAway === 'away') || {};
+      const homeAbbr = homeTeam.team?.abbreviation?.toUpperCase() || '?';
+      const awayAbbr = awayTeam.team?.abbreviation?.toUpperCase() || '?';
+      const homeName = homeTeam.team?.displayName || homeAbbr;
+      const awayName = awayTeam.team?.displayName || awayAbbr;
+      const state    = comp.status?.type?.state || 'pre';
+      const status   = comp.status?.type?.shortDetail || '';
+      const period   = comp.status?.period || 0;
+      const clock    = comp.status?.displayClock || '';
 
-      const homeAbbr = home.team?.abbreviation || '';
-      const awayAbbr = away.team?.abbreviation || '';
-      const homeName = home.team?.displayName  || homeAbbr;
-      const awayName = away.team?.displayName  || awayAbbr;
-
-      if (!homeAbbr || !awayAbbr) continue;
-
-      let hoursToClose = 4;
-      try {
-        const gameTime = new Date(event.date);
-        const now      = new Date();
-        hoursToClose   = Math.max(0, (gameTime - now) / 3600000);
-      } catch (_) {}
-
-      const ht      = teams.find(tm => tm.abbr === homeAbbr) || {};
-      const at      = teams.find(tm => tm.abbr === awayAbbr) || {};
-      const homeNet = parseFloat(((ht.ortg || 112) - (ht.drtg || 112)).toFixed(1));
-      const awayNet = parseFloat(((at.ortg || 112) - (at.drtg || 112)).toFixed(1));
-
+      // Label waktu WITA
+      const gameTimeUTC = event.date ? new Date(event.date) : null;
       let timeLabel = '';
-      if (state === 'in') {
-        timeLabel = ('LIVE - Q' + (status.period || '?') + ' ' + (status.displayClock || '')).trim();
-      } else if (state === 'post') {
-        timeLabel = 'Final';
-      } else {
-        try {
-          timeLabel = new Date(event.date).toLocaleTimeString('id-ID', {
-            hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
-          }) + ' WIB';
-        } catch (_) {
-          timeLabel = 'Today';
-        }
+      if (gameTimeUTC) {
+        timeLabel = gameTimeUTC.toLocaleTimeString('id-ID', {
+          timeZone: 'Asia/Makassar',
+          hour: '2-digit', minute: '2-digit'
+        }) + ' WITA';
       }
+
+      const hoursToClose = gameTimeUTC
+        ? Math.max(0, (gameTimeUTC - Date.now()) / 3600000)
+        : 0;
 
       newGameData.push({
         id:           event.id || (homeAbbr + '-' + awayAbbr),
@@ -213,54 +204,31 @@ async function buildGameDataFromESPN() {
         date:         event._isToday === false ? (event._dateLabel || '') : _todayISO,
         status:       state === 'in' ? 'live' : state === 'post' ? 'final' : 'upcoming',
         hoursToClose: parseFloat(hoursToClose.toFixed(1)),
-        netRating:    { home: homeNet, away: awayNet },
-        recency: {
-          home: (gameData.find(g => g.home === homeAbbr) || {}).recency?.home || [0,0,0,0,0],
-          away: (gameData.find(g => g.away === awayAbbr) || {}).recency?.away || [0,0,0,0,0],
-        },
-        injuries:    [],
-        homeFlag:    1,
-        rest:        { home: 1, away: 1 },
-        pmPriceMove: 0,
-        pmYesPrice:  0.5,
-        pmNoPrice:   0.5,
-        pmVolume:    0,
-        pmSpread:    null,
-        pmQuestion:  '',
-        pmTokenId:   null,
-        pmLive:      false,
-        refPaceFast: 0,
-        refFoulHigh: 0,
-        _homeScore:  state !== 'pre' ? parseInt(home.score || 0) : null,
-        _awayScore:  state !== 'pre' ? parseInt(away.score || 0) : null,
-        _period:     status.period || 0,
-        _clock:      status.displayClock || '',
-        _live:       state === 'in',
-        _isLive:     state === 'in',
-        _isLive:     state === 'in',
-        _espnId:     event.id,
+        netRating:    { home: 0, away: 0 },
+        recency:      { home: { wins: 0, losses: 0, netRtg: 0 },
+                        away: { wins: 0, losses: 0, netRtg: 0 } },
+        injuryImpact: { home: 1, away: 1 },
+        pmPriceMove:  0,
+        pmYesPrice:   0.5,
+        pmVolume:     0,
+        period:       period,
+        clock:        clock,
+        statusDetail: status,
       });
     }
 
-    if (newGameData.length === 0) {
-      console.warn('[ESPN] 0 game valid ditemukan');
-      return false;
-    }
-
-    gameData.length = 0;
-    newGameData.forEach(g => gameData.push(g));
-    console.log('[ESPN] gameData dibangun: ' + gameData.length + ' game hari ini');
+    gameData = newGameData;
+    console.log('[ESPN] gameData dibangun: ' + gameData.length + ' game (' +
+      gameData.filter(g=>g.date===_todayISO).length + ' hari ini, ' +
+      gameData.filter(g=>g.date!==_todayISO && g.date).length + ' besok)');
     return true;
 
-  } catch (e) {
+  } catch(e) {
     console.warn('[buildGameDataFromESPN]', e.message);
     return false;
   }
 }
 
-// ──────────────────────────────────────────────
-// ESPN LIVE SCORE UPDATE
-// ──────────────────────────────────────────────
 
 async function fetchESPNScoreboard() {
   setStatus('BDL', 'conn', 'ESPN \u00B7 Fetching scores...');
