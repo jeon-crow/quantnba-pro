@@ -885,40 +885,59 @@ def pm_nba_games():
 
 @app.route('/api/espn/schedule')
 def espn_schedule():
-    """Return game hari ini + hari berikutnya yang ada game (maks 4 hari ke depan)."""
+    """Return game hari ini + besok berdasarkan WITA (UTC+8)."""
     try:
         from datetime import datetime, timezone, timedelta
-        ET = timezone(timedelta(hours=-4))
+        WITA = timezone(timedelta(hours=8))
+        ET   = timezone(timedelta(hours=-4))
+        now_wita    = datetime.now(WITA)
+        today_wita  = now_wita.date()
 
-        # Fetch hari ini
-        today_str  = datetime.now(ET).strftime('%Y%m%d')
-        today_data = cached_get(f'espn:scoreboard:{today_str}',
-                                f'{ESPN_BASE}/scoreboard?dates={today_str}', ttl=20)
-        today_events = today_data.get('events', [])
-
-        # Cari hari berikutnya yang ada game
-        next_events = []
-        next_date_str = ''
-        for d in range(1, 5):
-            next_date = (datetime.now(ET) + timedelta(days=d)).strftime('%Y%m%d')
+        # Fetch 5 hari dari ET untuk dapat semua game yang relevan
+        all_raw = {}
+        for d in range(-1, 5):
+            date_et = (datetime.now(ET) + timedelta(days=d)).strftime('%Y%m%d')
+            if date_et in all_raw:
+                continue
             try:
-                next_data = cached_get(f'espn:scoreboard:{next_date}',
-                                       f'{ESPN_BASE}/scoreboard?dates={next_date}', ttl=300)
-                if next_data.get('events'):
-                    next_events    = next_data['events']
-                    next_date_str  = next_date
-                    break
+                data = cached_get(
+                    f'espn:scoreboard:{date_et}',
+                    f'{ESPN_BASE}/scoreboard?dates={date_et}',
+                    ttl=20 if d == 0 else 300
+                )
+                if data.get('events'):
+                    all_raw[date_et] = data['events']
             except:
                 pass
 
-        # Deduplicate by event id
+        # Proses semua event, tambah _witaDate, deduplicate
         seen = set()
         all_events = []
-        for ev in today_events + next_events:
-            eid = ev.get('id','')
-            if eid not in seen:
+        today_str = today_wita.strftime('%Y%m%d')
+        next_date_str = ''
+
+        for date_et in sorted(all_raw.keys()):
+            for ev in all_raw[date_et]:
+                eid = ev.get('id', '')
+                if eid in seen:
+                    continue
                 seen.add(eid)
+
+                # Konversi ke WITA
+                ev_utc = ev.get('date', '')
+                try:
+                    ev_dt   = datetime.fromisoformat(ev_utc.replace('Z', '+00:00'))
+                    ev_wita = ev_dt.astimezone(WITA).date()
+                except:
+                    ev_wita = today_wita
+
+                # Tambah _witaDate ke event
+                ev = dict(ev)
+                ev['_witaDate'] = ev_wita.strftime('%Y-%m-%d')
+
                 all_events.append(ev)
+                if ev_wita > today_wita and not next_date_str:
+                    next_date_str = ev_wita.strftime('%Y%m%d')
 
         return jsonify({
             'events':     all_events,
