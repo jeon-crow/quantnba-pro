@@ -124,13 +124,24 @@ async function buildGameDataFromESPN() {
     const todayISO  = toISO(todayStr);
     const nextISO   = toISO(nextStr);
 
+    // Gunakan _witaDate dari server (sudah dalam WITA)
+    const nowWITA     = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Makassar'}));
+    const todayWITA   = nowWITA.getFullYear() + '-' +
+                        String(nowWITA.getMonth()+1).padStart(2,'0') + '-' +
+                        String(nowWITA.getDate()).padStart(2,'0');
+    const tomorrowD   = new Date(nowWITA); tomorrowD.setDate(nowWITA.getDate()+1);
+    const tomorrowWITA = tomorrowD.getFullYear() + '-' +
+                         String(tomorrowD.getMonth()+1).padStart(2,'0') + '-' +
+                         String(tomorrowD.getDate()).padStart(2,'0');
+
     const allEvents = (schedData.events || []).map(ev => {
-      const evDate  = ev.date ? new Date(ev.date) : null;
-      const evDateET = evDate
-        ? evDate.toLocaleDateString('en-CA', {timeZone:'America/New_York'})
-        : todayISO;
-      const isToday = evDateET === todayISO;
-      return {...ev, _dateLabel: isToday ? todayISO : nextISO, _isToday: isToday};
+      const wDate   = ev._witaDate || todayWITA;
+      const isToday = wDate === todayWITA;
+      const isTmr   = wDate === tomorrowWITA;
+      const label   = isToday ? 'HARI INI'
+                    : isTmr   ? 'BESOK'
+                    : 'LUSA (' + wDate.slice(5) + ')';
+      return {...ev, _dateLabel: wDate, _isToday: isToday, _dayLabel: label};
     });
 
     if (!allEvents.length) {
@@ -175,7 +186,7 @@ async function buildGameDataFromESPN() {
         away:         awayAbbr,
         label:        homeName + ' vs ' + awayName,
         time:         timeLabel,
-        date:         event._isToday === false ? (event._dateLabel || '') : _todayISO,
+        date:         event._dateLabel || todayWITA,
         status:       state === 'in' ? 'live' : state === 'post' ? 'final' : 'upcoming',
         hoursToClose: parseFloat(hoursToClose.toFixed(1)),
         netRating:    { home: 0, away: 0 },

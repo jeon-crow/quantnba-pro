@@ -339,10 +339,14 @@ function renderGameSelector() {
   if (!el) return;
 
   // Hitung tanggal hari ini di ET
-  const nowET    = new Date(new Date().toLocaleString('en-US', {timeZone:'America/New_York'}));
-  const todayStr = nowET.getFullYear() + '-' +
-                   String(nowET.getMonth()+1).padStart(2,'0') + '-' +
-                   String(nowET.getDate()).padStart(2,'0');
+  const nowWITA2    = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Makassar'}));
+  const todayStr    = nowWITA2.getFullYear() + '-' +
+                      String(nowWITA2.getMonth()+1).padStart(2,'0') + '-' +
+                      String(nowWITA2.getDate()).padStart(2,'0');
+  const tomorrowD2  = new Date(nowWITA2); tomorrowD2.setDate(nowWITA2.getDate()+1);
+  const tomorrowWITA = tomorrowD2.getFullYear() + '-' +
+                       String(tomorrowD2.getMonth()+1).padStart(2,'0') + '-' +
+                       String(tomorrowD2.getDate()).padStart(2,'0');
 
   let lastLabel = '';
   const rows = [];
@@ -354,16 +358,14 @@ function renderGameSelector() {
     const confColor = confidence >= 70 ? 'var(--green)' : confidence >= 50 ? 'var(--amber)' : 'var(--red)';
 
     // Label tanggal
-    const gDate     = (g.date || '').slice(0, 10);
-    // Konversi gDate dari UTC ke ET untuk perbandingan
-    const gDateET   = gDate ? (() => {
-      const d = new Date(gDate + 'T12:00:00'); // noon UTC → pasti hari yang sama di ET
-      return d.toLocaleDateString('en-CA', {timeZone:'America/New_York'});
-    })() : todayStr;
-    const isToday   = !gDate || gDateET === todayStr;
-    const isFinalG  = g.status === 'final' || g.status === 'STATUS_FINAL';
-    // Game Final selalu masuk HARI INI
-    const dateLabel = (isToday || isFinalG) ? 'HARI INI' : 'BESOK';
+    const gDate    = (g.date || '').slice(0, 10);
+    const isFinalG = g.status === 'final' || g.status === 'STATUS_FINAL';
+    // Bandingkan langsung dengan tanggal WITA
+    const dateLabel = isFinalG    ? 'HARI INI'
+                    : !gDate      ? 'HARI INI'
+                    : gDate === todayStr     ? 'HARI INI'
+                    : gDate === tomorrowWITA ? 'BESOK'
+                    : 'LUSA (' + gDate.slice(5) + ')';
 
     if (dateLabel !== lastLabel) {
       lastLabel = dateLabel;
