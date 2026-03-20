@@ -239,7 +239,7 @@ function renderPMTable() {
   if (el_a) el_a.textContent = alpha;
   const el_v = document.getElementById('pmTotalVol');
   if (el_v) {
-    const tot = markets.reduce((s, m) => s + m.volume, 0);
+    const tot = Array.isArray(markets) ? markets.reduce((s, m) => s + (m.volume||0), 0) : 0;
     el_v.textContent = '$' + (tot / 1000).toFixed(0) + 'K';
   }
 
@@ -249,7 +249,7 @@ function renderPMTable() {
   if (alpha && kpiEdge) {
     const edges = markets.filter(m => Math.abs((m.modelProb - m.yesPrice) * 100) >= 5)
       .map(m => Math.abs((m.modelProb - m.yesPrice) * 100));
-    kpiEdge.textContent = '+' + (edges.reduce((s, e) => s + e, 0) / edges.length).toFixed(1) + '%';
+    kpiEdge.textContent = '+' + (edges.length ? edges.reduce((s, e) => s + e, 0) / edges.length : 0).toFixed(1) + '%';
     if (kpiEdgeSub) kpiEdgeSub.textContent = alpha + ' alpha signals today';
   }
 
