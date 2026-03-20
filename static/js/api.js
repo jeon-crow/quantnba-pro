@@ -452,253 +452,91 @@ function estimateImpact(s) {
 // ══════════════════════════════════════════════════════════════════
 
 async function fetchPolymarket() {
-  setStatus('Polymarket', 'conn', 'Polymarket \u00B7 Connecting...');
+  setStatus('Polymarket', 'conn', 'Polymarket · Connecting...');
   try {
-    // Tahap 1: Fetch NBA markets
-    let raw = [];
-    try {
-      const nbaData = await apiFetch(API.pmNBA(), {}, 12000);
-      raw = nbaData.markets || nbaData || [];
-      console.log('[PM] NBA endpoint: ' + raw.length + ' markets (scanned ' + (nbaData.total_scanned || '?') + ')');
-    } catch (e) {
-      console.warn('[PM] NBA endpoint gagal, fallback generic:', e.message);
-      const fallback = await apiFetch(API.pmMarkets(), {}, 9000);
-      const allRaw   = fallback.markets || fallback || [];
-      raw = allRaw.filter(m => {
-        const text = ((m.question || '') + ' ' + (m.title || '')).toLowerCase();
-        return Object.values(TEAM_NAME_MAP).flat().some(kw => text.includes(kw));
-      });
-    }
-
-    if (!raw.length) {
-      console.warn('[PM] 0 NBA markets');
-      setStatus('Polymarket', 'err', 'Polymarket \u00B7 0 NBA markets');
-      renderPMTable();
-      return;
-    }
-
-    // Tahap 2: Enrich midpoint + order book
-    const enrichResults = await Promise.allSettled(
-      raw.slice(0, 20).map(async m => {
-        const tokenIds = m.clob_token_ids || [];
-        const tid = tokenIds[0] || m.tokens?.[0]?.token_id || m.condition_id || null;
-        if (!tid) return { ...m, _tid: null };
-        try {
-          const [midRes, bookRes] = await Promise.all([
-            apiFetch(API.pmMidpoint(tid), {}, 4000).catch(() => ({})),
-            apiFetch(API.pmBook(tid),     {}, 4000).catch(() => ({})),
-          ]);
-          const bestAsk = bookRes.asks?.[0]?.price ?? null;
-          const bestBid = bookRes.bids?.[0]?.price ?? null;
-          return {
-            ...m, _tid: tid,
-            _mid:     midRes.mid ? parseFloat(midRes.mid) : null,
-            _spread:  (bestAsk && bestBid) ? parseFloat(bestAsk) - parseFloat(bestBid) : null,
-            _bestBid: bestBid ? parseFloat(bestBid) : null,
-            _bestAsk: bestAsk ? parseFloat(bestAsk) : null,
-          };
-        } catch { return { ...m, _tid: tid }; }
-      })
+    const data = await apiFetch(
+      '/api/pm/markets?tag=nba&limit=100', {}, 10000
     );
+    if (data.error) throw new Error(data.error);
 
-    // Tahap 3: Build liveMarkets + match ke gameData
-    const enriched = enrichResults.map(r => r.status === 'fulfilled' ? r.value : null).filter(Boolean);
-    let matched = 0, unmatched = 0;
-    liveMarkets.length = 0;
+    const raw = Array.isArray(data) ? data : (data.markets || []);
 
-    enriched.forEach(m => {
-      const question = m.question || m.title || '';
-      const outYes   = m.outcomes?.find?.(o => (o.name || '').toLowerCase() === 'yes');
-      const outNo    = m.outcomes?.find?.(o => (o.name || '').toLowerCase() === 'no');
-      const yesPrice = parseFloat(m._mid || outYes?.price || m.outcomePrices?.[0] || 0);
-      const noPrice  = parseFloat(outNo?.price || m.outcomePrices?.[1] || (1 - yesPrice));
+    const NBA_FILTER = [
+      'lakers','celtics','nuggets','heat','bucks','thunder','warriors',
+      'spurs','knicks','nets','sixers','clippers','mavericks','pelicans',
+      'grizzlies','rockets','pacers','wizards','bulls','pistons','cavaliers',
+      'magic','kings','jazz','blazers','timberwolves','hawks','hornets',
+      'raptors','suns','nba finals','nba champion','nba playoff',
+      'oklahoma city','golden state','los angeles lakers','boston',
+      'miami heat','milwaukee','denver','cleveland','minnesota',
+    ];
+    const NON_NBA = ['nhl','stanley cup','mlb','nfl','soccer','ufc','boxing','wnba'];
 
-      if (yesPrice <= 0 || yesPrice >= 1) return;
+    const nba = raw.filter(m => {
+      const q       = (m.question || m.title || '').toLowerCase();
+      const hasNBA    = NBA_FILTER.some(k => q.includes(k));
+      const hasNonNBA = NON_NBA.some(k => q.includes(k));
+      return hasNBA && !hasNonNBA;
+    });
 
-      const marketObj = {
-        question, yesPrice,
-        noPrice:    parseFloat(noPrice.toFixed(4)),
-        volume:     parseInt(m.volumeNum || m.volume || 0),
-        spread:     m._spread || null,
-        bestBid:    m._bestBid || null,
-        bestAsk:    m._bestAsk || null,
-        liquidity:  parseInt(m.volumeNum || 0) > 50000 ? 'High'
-                  : parseInt(m.volumeNum || 0) > 20000 ? 'Medium' : 'Low',
-        tokenId:    m._tid || null,
-        conditionId: m.condition_id || m.id || null,
-        _live:      true,
+    if (!nba.length) throw new Error('No NBA markets — ' + raw.length + ' total');
+
+    liveMarkets = nba.map(m => {
+      let prices = m.outcomePrices;
+      if (typeof prices === 'string') {
+        try { prices = JSON.parse(prices); } catch { prices = ['0.5','0.5']; }
+      }
+      if (!Array.isArray(prices)) prices = ['0.5','0.5'];
+
+      const yesPrice = parseFloat(prices[0] || 0.5);
+      const noPrice  = parseFloat(prices[1] || 0.5);
+      const liq      = parseFloat(m.liquidity || 0);
+      const vol      = parseFloat(m.volume    || 0);
+
+      return {
+        question:      m.question || m.title || '',
+        conditionId:   m.conditionId || '',
+        yesPrice:      isNaN(yesPrice) ? 0.5 : yesPrice,
+        noPrice:       isNaN(noPrice)  ? 0.5 : noPrice,
+        volume:        vol,
+        liquidity:     liq,
+        liquidityLabel: liq > 50000 ? 'High' : liq > 10000 ? 'Medium' : 'Low',
+        spread:        null,
+        tokenIds:      m.clobTokenIds || m.clob_token_ids || [],
+        _live:         true,
       };
+    }).filter(m => m.yesPrice > 0 && m.yesPrice < 1 && !isNaN(m.yesPrice));
 
-      liveMarkets.push(marketObj);
-
-      // Match ke gameData
-      const result = matchMarketToGame(question);
-      if (result) {
-        const g = result.game;
-        const marketSide = detectMarketSide(question);
-        const isHomeYes  = marketSide === g.home || (result.homeMatch && !result.awayMatch);
-
-        if (isHomeYes) {
-          g.pmYesPrice = yesPrice;
-          g.pmNoPrice  = noPrice;
-        } else {
-          g.pmYesPrice = noPrice;
-          g.pmNoPrice  = yesPrice;
-        }
-        g.pmVolume   = marketObj.volume;
-        g.pmSpread   = marketObj.spread;
-        g.pmQuestion = question;
-        g.pmTokenId  = marketObj.tokenId;
-        g.pmLive     = true;
-        g.spread     = marketObj.spread;
-        matched++;
-        console.log('[PM] \u2713 ' + question.slice(0, 50) + ' \u2192 ' + g.home + ' vs ' + g.away +
-                     ' YES=' + yesPrice.toFixed(2) + ' side=' + (isHomeYes ? 'home' : 'away'));
-      } else {
-        unmatched++;
+    liveMarkets.forEach(lm => {
+      const q = (lm.question || '').toLowerCase();
+      const match = gameData.find(g => {
+        const hf = (typeof teamName === 'function' ? teamName(g.home) : g.home).toLowerCase();
+        const af = (typeof teamName === 'function' ? teamName(g.away) : g.away).toLowerCase();
+        return hf.split(' ').some(w => w.length > 3 && q.includes(w)) ||
+               af.split(' ').some(w => w.length > 3 && q.includes(w));
+      });
+      if (match) {
+        match.pmYesPrice  = lm.yesPrice;
+        match.pmVolume    = lm.volume;
+        match.pmLiquidity = lm.liquidityLabel;
       }
     });
 
-    // Tahap 4: Render semua
     AlertSystem.checkPrice(liveMarkets);
     renderPMTable();
-    renderLiveGames();
-    renderOddsFromPM();
-    renderGameSelector();
-    renderEngineDetail();
-    updateDashboardKPIs();
-
-    setBadge('scannerDb', 'live');
+    setBadge('scannerDb',  'live');
     setBadge('scannerDb2', 'live');
-
-    const statusMsg = 'PM \u00B7 ' + liveMarkets.length + ' mkts \u00B7 ' + matched + ' matched';
-    setStatus('Polymarket', 'live', statusMsg);
-    console.log('[PM] ' + statusMsg);
+    setStatus('Polymarket', 'live',
+      'Polymarket · ' + liveMarkets.length + ' NBA markets');
+    console.log('[PM] ' + liveMarkets.length + ' markets | harga dari outcomePrices');
 
   } catch (e) {
     console.warn('[PM]', e.message);
-    setStatus('Polymarket', 'err', 'PM \u00B7 ' + e.message.slice(0, 28));
+    setStatus('Polymarket', 'err', 'Polymarket · ' + e.message.slice(0, 35));
     renderPMTable();
   }
 }
 
-// ──────────────────────────────────────────────
-// ODDS COMPARATOR — auto dari PM data
-// ──────────────────────────────────────────────
-
-function impliedToAmerican(prob) {
-  if (!prob || prob <= 0 || prob >= 1) return '\u2014';
-  if (prob >= 0.5) return '-' + Math.round(prob / (1 - prob) * 100);
-  return '+' + Math.round((1 - prob) / prob * 100);
-}
-
-function renderOddsFromPM() {
-  const rows = [];
-
-  gameData.forEach(g => {
-    if (!g.pmLive || g.pmYesPrice <= 0.01 || g.pmYesPrice >= 0.99) return;
-
-    const homeImplied = g.pmYesPrice;
-    const awayImplied = g.pmNoPrice || (1 - homeImplied);
-    const homeML = impliedToAmerican(homeImplied);
-    const awayML = impliedToAmerican(awayImplied);
-
-    let modelProb = 0.5;
-    if (typeof getGameProb === 'function') {
-      const result = getGameProb(g);
-      modelProb = result.finalProb || 0.5;
-    }
-    const edgeVsPM = ((modelProb - homeImplied) * 100).toFixed(1);
-
-    rows.push({
-      game: g.home + ' vs ' + g.away, book: 'Polymarket',
-      homeML, awayML,
-      implied: (homeImplied * 100).toFixed(1) + '%',
-      pmPrice: '$' + homeImplied.toFixed(2),
-      model:   (modelProb * 100).toFixed(1) + '%',
-      vsPM:    (edgeVsPM > 0 ? '+' : '') + edgeVsPM + '%',
-      arb: 'No', _edge: parseFloat(edgeVsPM),
-      _homeAbbr: g.home, _awayAbbr: g.away, _pmYes: homeImplied, _modelP: modelProb,
-    });
-  });
-
-  rows.sort((a, b) => Math.abs(b._edge || 0) - Math.abs(a._edge || 0));
-
-  // Render langsung ke DOM
-  const tbody = document.getElementById('oddsTbody');
-  if (!tbody) return;
-
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--t2);padding:20px">'
-      + 'Menunggu data Polymarket... Klik Sync.</td></tr>';
-    setBadge('oddsDb', 'demo');
-    return;
-  }
-
-  tbody.innerHTML = rows.map(r => {
-    const ec = (r._edge || 0) > 3 ? 'var(--green)' : (r._edge || 0) < -3 ? 'var(--red)' : 'var(--t2)';
-    return '<tr>' +
-      '<td style="text-align:left;font-weight:600">' + sanitize(r.game) + '</td>' +
-      '<td><span class="db db-live" style="font-size:9px">PM</span></td>' +
-      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:11px">' + r.homeML + '</td>' +
-      '<td style="font-family:\'JetBrains Mono\',monospace;font-size:11px">' + r.awayML + '</td>' +
-      '<td>' + r.implied + '</td>' +
-      '<td style="color:var(--amber);font-weight:600">' + r.pmPrice + '</td>' +
-      '<td>' + r.model + '</td>' +
-      '<td style="color:' + ec + ';font-weight:700">' + r.vsPM + '</td>' +
-      '<td style="color:var(--t2)">' + r.arb + '</td></tr>';
-  }).join('');
-
-  setBadge('oddsDb', 'live');
-}
-
-// ──────────────────────────────────────────────
-// DASHBOARD KPIs
-// ──────────────────────────────────────────────
-
-function updateDashboardKPIs() {
-  try {
-    const gamesWithPM = gameData.filter(g => g.pmLive && g.pmYesPrice > 0.01);
-    if (!gamesWithPM.length) return;
-    let totalEdge = 0, edgeCount = 0;
-    gamesWithPM.forEach(g => {
-      if (typeof getGameProb === 'function') {
-        const { finalProb } = getGameProb(g);
-        totalEdge += Math.abs(finalProb - g.pmYesPrice) * 100;
-        edgeCount++;
-      }
-    });
-    if (edgeCount > 0) {
-      const avgEdge = totalEdge / edgeCount;
-      const el  = document.getElementById('kpiEdge');
-      const sub = document.getElementById('kpiEdgeSub');
-      if (el) el.textContent = avgEdge.toFixed(1) + '%';
-      if (sub) sub.textContent = edgeCount + ' games with PM odds';
-    }
-  } catch (e) { console.warn('[updateDashboardKPIs]', e.message); }
-}
-
-// ──────────────────────────────────────────────
-// KELLY AUTO-FILL (dari game click)
-// ──────────────────────────────────────────────
-
-function autoFillKelly(gameId) {
-  const g = gameData.find(gm => gm.id === gameId);
-  if (!g) return;
-  if (typeof getGameProb === 'function') {
-    const { finalProb } = getGameProb(g);
-    const probInput  = document.getElementById('kcModelProb');
-    const priceInput = document.getElementById('kcYesPrice');
-    if (probInput)  probInput.value = Math.round(finalProb * 100);
-    if (priceInput) priceInput.value = (g.pmYesPrice || 0.5).toFixed(2);
-    if (typeof calcKelly === 'function') calcKelly();
-  }
-  if (typeof showSection === 'function') showSection('kelly', null);
-}
-
-// ──────────────────────────────────────────────
-// REFEREES
-// ──────────────────────────────────────────────
 
 async function fetchReferees() {
   setStatus('Referees', 'idle', 'Referees \u00B7 Demo data');

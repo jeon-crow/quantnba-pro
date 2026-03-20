@@ -224,7 +224,7 @@ function renderPMTable() {
     const k = Math.max(0, (m.modelProb - m.yesPrice) / (1 - m.yesPrice) * .25);
     const kStr = k > 0 ? (k * 100).toFixed(1) + '%' : '\u2014';
     const vol = m.volume >= 1000 ? '$' + (m.volume / 1000).toFixed(0) + 'K' : '$' + m.volume;
-    const liqColor = m.liquidity === 'High' ? 'var(--green)' : m.liquidity === 'Medium' ? 'var(--amber)' : 'var(--red)';
+    const liqColor = (m.liquidityLabel || m.liquidity) === 'High' ? 'var(--green)' : m.liquidity === 'Medium' ? 'var(--amber)' : 'var(--red)';
     const conf = m.confidence != null
       ? '<span style="font-family:\'JetBrains Mono\',monospace;font-size:9px;color:' +
         (m.confidence >= 70 ? 'var(--green)' : m.confidence >= 50 ? 'var(--amber)' : 'var(--t2)') +

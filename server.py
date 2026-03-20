@@ -309,10 +309,15 @@ def pm_markets():
     try:
         p = request.args.to_dict()
         p.setdefault("active", "true")
-        p.setdefault("limit",  "50")
         p.setdefault("closed", "false")
-        url  = f"{PM_GAMMA}/markets?" + "&".join(f"{k}={v}" for k, v in p.items())
-        data = cached_get("pm:markets", url, ttl=45)
+        # Naikkan limit jika ada tag
+        if "tag" in p:
+            p.setdefault("limit", "100")
+        else:
+            p.setdefault("limit", "50")
+        url      = f"{PM_GAMMA}/markets?" + "&".join(f"{k}={v}" for k, v in p.items())
+        cache_key = "pm:markets:" + p.get("tag", "all")
+        data     = cached_get(cache_key, url, ttl=45)
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
