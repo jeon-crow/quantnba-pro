@@ -595,17 +595,17 @@
 </div>
 
 <!-- ══ MODULAR JAVASCRIPT — Load Order Matters ══ -->
-<script src="/static/js/config.js?v=1773993417"></script>
-<script src="/static/js/data.js?v=1773993417"></script>
-<script src="/static/js/model.js?v=1773993417"></script>
-<script src="/static/js/systems.js?v=1773993417"></script>
-<script src="/static/js/ui.js?v=1773993417"></script>
-<script src="/static/js/kelly.js?v=1773993417"></script>
+<script src="/static/js/config.js?v=1773993781"></script>
+<script src="/static/js/data.js?v=1773993781"></script>
+<script src="/static/js/model.js?v=1773993781"></script>
+<script src="/static/js/systems.js?v=1773993781"></script>
+<script src="/static/js/ui.js?v=1773993781"></script>
+<script src="/static/js/kelly.js?v=1773993781"></script>
 <script src="/static/js/api.v1773992730.js"></script>
-<script src="/static/js/backtest.js?v=1773993417"></script>
-<script src="/static/js/ws.js?v=1773993417"></script>
-<script src="/static/js/tests.js?v=1773993417"></script>
-<script src="/static/js/app.js?v=1773993417"></script>
+<script src="/static/js/backtest.js?v=1773993781"></script>
+<script src="/static/js/ws.js?v=1773993781"></script>
+<script src="/static/js/tests.js?v=1773993781"></script>
+<script src="/static/js/app.js?v=1773993781"></script>
 
 
 <script>
@@ -614,10 +614,18 @@ window.onerror = function(msg, src, line, col, err) {
   const el = document.getElementById('_dbgErr');
   if (el) {
     el.style.display = 'block';
-    el.textContent = (line||'?') + ': ' + msg + ' | ' + (src||'').split('/').pop();
+    const file = (src||'').split('/').pop().split('?')[0];
+    el.textContent = file + ':' + (line||'?') + ' - ' + msg;
   }
   return false;
 };
+window.addEventListener('unhandledrejection', function(e) {
+  const el = document.getElementById('_dbgErr');
+  if (el) {
+    el.style.display = 'block';
+    el.textContent = 'Promise: ' + (e.reason?.message || e.reason || 'unknown');
+  }
+});
 </script>
 <div id="_dbgErr" style="display:none;position:fixed;bottom:60px;left:0;right:0;
   background:#ff4560;color:#fff;padding:8px 12px;font-size:11px;z-index:9999;

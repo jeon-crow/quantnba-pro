@@ -451,75 +451,78 @@ function estimateImpact(s) {
 async function fetchPolymarket() {
   setStatus('Polymarket', 'conn', 'Polymarket · Connecting...');
   try {
-    const _pmRes = await fetch('/api/pm/nba-games');
-    if (!_pmRes.ok) throw new Error('HTTP ' + _pmRes.status);
-    const data = await _pmRes.json();
-    if (!data || data.error) throw new Error(data?.error || 'No data');
+    const res  = await fetch('/api/pm/nba-games');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data || data.error) throw new Error(String(data?.error || 'no data'));
 
-    const games   = Array.isArray(data.games) ? data.games : [];
-    const matched = games.filter(g => g && g.pm_found && g.away && g.home);
+    const games   = Array.isArray(data?.games) ? data.games : [];
+    const matched = games.filter(g => g?.pm_found && g?.away && g?.home);
 
-    // Update gameData dengan harga Polymarket
-    matched.forEach(g => {
-      try {
-        const awayShort = g.away.split(' ').pop().toLowerCase();
-        const homeShort = g.home.split(' ').pop().toLowerCase();
-        const gd = (Array.isArray(gameData) ? gameData : []).find(gd => {
+    // Cocokkan ke gameData
+    if (Array.isArray(gameData)) {
+      matched.forEach(g => {
+        const awayLast = (g.away || '').split(' ').pop().toLowerCase();
+        const homeLast = (g.home || '').split(' ').pop().toLowerCase();
+        const found = gameData.find(gd => {
           if (!gd) return false;
-          // gameData.home = abbrev (LAL), label = "Lakers vs Heat"
-          const label = (gd.label || '').toLowerCase();
-          if (label.includes(homeShort) || label.includes(awayShort)) return true;
-          const h = (gd.home ? (typeof teamName==='function' ? (teamName(gd.home)||gd.home) : gd.home) : '').toLowerCase();
-          const a = (gd.away ? (typeof teamName==='function' ? (teamName(gd.away)||gd.away) : gd.away) : '').toLowerCase();
-          return h.includes(homeShort) || a.includes(awayShort);
+          // Coba via label dulu (paling reliable)
+          const lbl = String(gd.label || '').toLowerCase();
+          if (awayLast && lbl.includes(awayLast)) return true;
+          if (homeLast && lbl.includes(homeLast)) return true;
+          // Fallback via abbrev + teamName
+          try {
+            const ha = String(typeof teamName === 'function' && gd.home
+              ? teamName(gd.home) || gd.home : gd.home || '').toLowerCase();
+            const aa = String(typeof teamName === 'function' && gd.away
+              ? teamName(gd.away) || gd.away : gd.away || '').toLowerCase();
+            return (homeLast && ha.includes(homeLast)) || (awayLast && aa.includes(awayLast));
+          } catch(_) { return false; }
         });
-        if (gd) {
-          gd.pmAwayPrice = g.away_price;
-          gd.pmHomePrice = g.home_price;
-          gd.pmVolume    = g.volume || 0;
-          gd.pmLiquidity = (g.liquidity || 0) > 50000 ? 'High'
-                         : (g.liquidity || 0) > 10000 ? 'Medium' : 'Low';
+        if (found) {
+          found.pmAwayPrice = g.away_price  || 0.5;
+          found.pmHomePrice = g.home_price  || 0.5;
+          found.pmVolume    = g.volume      || 0;
+          found.pmLiquidity = (g.liquidity||0) > 50000 ? 'High'
+                            : (g.liquidity||0) > 10000 ? 'Medium' : 'Low';
         }
-      } catch(ex) {
-        console.warn('[PM match]', ex.message, g?.away, g?.home);
-      }
-    });
+      });
+    }
 
     // Build liveMarkets
     liveMarkets = matched.map(g => ({
-      question:       (g.away || '') + ' vs ' + (g.home || '') + ' to win',
-      away:           g.away || '',
-      home:           g.home || '',
-      yesPrice:       g.away_price || 0.5,
-      noPrice:        g.home_price || 0.5,
-      awayPrice:      g.away_price || 0.5,
-      homePrice:      g.home_price || 0.5,
-      volume:         g.volume || 0,
-      liquidity:      g.liquidity || 0,
-      liquidityLabel: (g.liquidity || 0) > 50000 ? 'High'
-                    : (g.liquidity || 0) > 10000 ? 'Medium' : 'Low',
-      status:         g.status || '',
-      period:         g.period || 0,
-      clock:          g.clock  || '',
-      is_final:       g.is_final || false,
-      is_closed:      g.is_closed || false,
+      question:       String(g.away) + ' vs ' + String(g.home) + ' to win',
+      away:           g.away,
+      home:           g.home,
+      yesPrice:       Number(g.away_price)  || 0.5,
+      noPrice:        Number(g.home_price)  || 0.5,
+      awayPrice:      Number(g.away_price)  || 0.5,
+      homePrice:      Number(g.home_price)  || 0.5,
+      volume:         Number(g.volume)      || 0,
+      liquidity:      Number(g.liquidity)   || 0,
+      liquidityLabel: (Number(g.liquidity)||0) > 50000 ? 'High'
+                    : (Number(g.liquidity)||0) > 10000 ? 'Medium' : 'Low',
+      status:         String(g.status  || ''),
+      period:         Number(g.period  || 0),
+      clock:          String(g.clock   || ''),
+      is_final:       Boolean(g.is_final),
+      is_closed:      Boolean(g.is_closed),
       pm_found:       true,
       _live:          true,
     }));
 
-    if (typeof AlertSystem !== 'undefined') AlertSystem.checkPrice(liveMarkets);
+    try { if (typeof AlertSystem !== 'undefined') AlertSystem.checkPrice(liveMarkets); } catch(_) {}
     renderPMTable();
     setBadge('scannerDb',  'live');
     setBadge('scannerDb2', 'live');
-    setStatus('Polymarket', 'live',
-      'Polymarket · ' + matched.length + ' NBA games');
-    console.log('[PM] ' + matched.length + '/' + games.length + ' games matched');
+    setStatus('Polymarket', 'live', 'Polymarket · ' + matched.length + ' NBA games');
+    console.log('[PM] ' + matched.length + '/' + games.length + ' matched');
 
   } catch(e) {
-    console.warn('[PM]', e.message);
-    setStatus('Polymarket', 'err', 'PM · ' + e.message.slice(0, 30));
+    console.warn('[PM error]', e.message, e.stack?.split('\n')[1]);
+    setStatus('Polymarket', 'err', 'PM · ' + String(e.message).slice(0, 35));
     if (!Array.isArray(liveMarkets)) liveMarkets = [];
-    renderPMTable();
+    try { renderPMTable(); } catch(_) {}
   }
 }
 
