@@ -134,7 +134,8 @@ async function buildGameDataFromESPN() {
                          String(tomorrowD.getMonth()+1).padStart(2,'0') + '-' +
                          String(tomorrowD.getDate()).padStart(2,'0');
 
-    const allEvents = (Array.isArray(schedData.events) ? schedData.events : []).map(ev => {
+    const rawEvents = Array.isArray(schedData?.events) ? schedData.events : [];
+    const allEvents = rawEvents.map(ev => {
       const wDate   = ev._witaDate || todayWITA;
       const isToday = wDate === todayWITA;
       const isTmr   = wDate === tomorrowWITA;
@@ -210,7 +211,7 @@ async function buildGameDataFromESPN() {
     return true;
 
   } catch(e) {
-    console.warn('[buildGameDataFromESPN]', e.message);
+    console.warn('[buildGameDataFromESPN]', e.message, e.stack?.split('\n')[1]);
     return false;
   }
 }

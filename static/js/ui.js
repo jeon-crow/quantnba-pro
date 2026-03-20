@@ -747,9 +747,10 @@ function renderOddsTable(apiGames) {
 function renderFormTrends() {
   const el = document.getElementById('formTrends');
   if (!el) return;
+  if (!formData?.scores?.length) return;
   el.innerHTML = formData.teams.map((t, i) => {
-    const arr = formData.scores[i];
-    const avg = (Array.isArray(arr) && arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0).toFixed(1);
+    const arr = Array.isArray(formData.scores[i]) ? formData.scores[i] : [0,0,0,0,0];
+    const avg = (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0).toFixed(1);
     const trend = arr[4] > arr[0];
     const dots = arr.map(s => {
       const c = s > 10 ? '#00E5A0' : s > 5 ? '#4C8EFF' : s > 0 ? '#F5A623' : '#FF4560';
