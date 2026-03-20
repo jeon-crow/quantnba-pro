@@ -858,6 +858,7 @@ def pm_nba_games():
                 'away_price':  away_price_display,
                 'home_price':  home_price_display,
                 'is_final':    is_final,
+                'is_closed':   bool(mk.get('closed', False)),
                 'outcomes':    outcomes,
                 'volume':      float(mk.get('volume', 0) or 0),
                 'liquidity':   float(pm_data.get('liquidity', 0) or 0),

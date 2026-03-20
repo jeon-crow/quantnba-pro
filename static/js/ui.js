@@ -198,7 +198,10 @@ function buildLiveMarkets() {
       confidence = gd.confidence || gd.conf  || confidence;
     }
 
-    const isFinal = m.is_final || m.status === 'STATUS_FINAL';
+    const isFinal  = m.is_final || m.status === 'STATUS_FINAL';
+    const isClosed = m.is_closed || false;
+    // Skip game Final yang sudah closed — harga tidak informatif
+    if (isClosed && isFinal) return null;
     return {
       ...m,
       modelProb:      modelProb,
@@ -210,7 +213,7 @@ function buildLiveMarkets() {
                     : m.status || '',
       is_final:       isFinal,
     };
-  });
+  }).filter(Boolean);
 }
 
 function renderPMTable() {
