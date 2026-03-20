@@ -151,8 +151,8 @@ async function buildGameDataFromESPN() {
     }
 
     const allEvents = [
-      ...(dataToday.events || []).map(ev => ({...ev, _dateLabel: _todayISO})),
-      ...(dataTmr.events   || []).map(ev => ({...ev, _dateLabel: tmrISO})),
+      ...(dataToday.events || []).map(ev => ({...ev, _dateLabel: _todayISO, _isToday: true})),
+      ...(dataTmr.events   || []).map(ev => ({...ev, _dateLabel: tmrISO,    _isToday: false})),
     ];
     const data = { ...dataToday, events: allEvents };
     if (data.error || !data.events?.length) {
@@ -210,7 +210,7 @@ async function buildGameDataFromESPN() {
         away:         awayAbbr,
         label:        homeName + ' vs ' + awayName,
         time:         timeLabel,
-        date:         event._dateLabel || event.date?.slice(0,10) || '',
+        date:         event._isToday === false ? (event._dateLabel || '') : _todayISO,
         status:       state === 'in' ? 'live' : state === 'post' ? 'final' : 'upcoming',
         hoursToClose: parseFloat(hoursToClose.toFixed(1)),
         netRating:    { home: homeNet, away: awayNet },

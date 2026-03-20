@@ -754,7 +754,9 @@ def pm_nba_games():
             clock     = comps.get('status',{}).get('displayClock','')
 
             pm_data = None
-            for date in [today_et, yest_et]:
+            # Coba today_et, yest_et, dan tomorrow_et untuk handle timezone edge cases
+            tomorrow_et = (datetime.now(ET) + timedelta(days=1)).strftime('%Y-%m-%d')
+            for date in [today_et, yest_et, tomorrow_et]:
                 slug = f"nba-{away_abbr}-{home_abbr}-{date}"
                 try:
                     data  = cached_get(f"pm:game:{slug}",
