@@ -355,8 +355,15 @@ function renderGameSelector() {
 
     // Label tanggal
     const gDate     = (g.date || '').slice(0, 10);
-    const isToday   = !gDate || gDate === todayStr;
-    const dateLabel = isToday ? 'HARI INI' : 'BESOK';
+    // Konversi gDate dari UTC ke ET untuk perbandingan
+    const gDateET   = gDate ? (() => {
+      const d = new Date(gDate + 'T12:00:00'); // noon UTC → pasti hari yang sama di ET
+      return d.toLocaleDateString('en-CA', {timeZone:'America/New_York'});
+    })() : todayStr;
+    const isToday   = !gDate || gDateET === todayStr;
+    const isFinalG  = g.status === 'final' || g.status === 'STATUS_FINAL';
+    // Game Final selalu masuk HARI INI
+    const dateLabel = (isToday || isFinalG) ? 'HARI INI' : 'BESOK';
 
     if (dateLabel !== lastLabel) {
       lastLabel = dateLabel;

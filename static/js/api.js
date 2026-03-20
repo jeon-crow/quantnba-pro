@@ -114,11 +114,18 @@ async function checkBackendStatus() {
 async function buildGameDataFromESPN() {
   try {
     // Fetch hari ini + besok
+    // Hitung tanggal ET hari ini dan besok
+    const _etNow  = new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+    const _etTmr  = new Date(_etNow); _etTmr.setDate(_etNow.getDate() + 1);
+    const _fmt    = d => d.getFullYear() +
+                         String(d.getMonth()+1).padStart(2,'0') +
+                         String(d.getDate()).padStart(2,'0');
+    const _todayS = _fmt(_etNow);
+    const _tmrS   = _fmt(_etTmr);
+
     const [dataTodayRaw, dataTmrRaw] = await Promise.allSettled([
-      apiFetch(API.espnScoreboard(), {}, 10000),
-      apiFetch(API.espnScoreboard() + '?dates=' +
-        (() => { const d = new Date(); d.setDate(d.getDate()+1);
-          return d.toISOString().slice(0,10).replace(/-/g,''); })(), {}, 10000),
+      apiFetch(API.espnScoreboard() + '?dates=' + _todayS, {}, 10000),
+      apiFetch(API.espnScoreboard() + '?dates=' + _tmrS,   {}, 10000),
     ]);
     const dataToday = dataTodayRaw.status === 'fulfilled' ? dataTodayRaw.value : {};
     const dataTmr   = dataTmrRaw.status  === 'fulfilled' ? dataTmrRaw.value  : {};
