@@ -1,6 +1,7 @@
 // config.js v3.2 — Season 2025-26 | PM NBA endpoint added
 const API = {
   espnScoreboard: (date) => date ? `/api/espn/scoreboard?date=${date}` : '/api/espn/scoreboard',
+    espnSchedule:   () => '/api/espn/schedule',
   espnSummary:    (eventId) => `/api/espn/summary/${eventId}`,
   espnInjuries:   () => '/api/espn/injuries',
   espnStandings:  () => '/api/espn/standings',
