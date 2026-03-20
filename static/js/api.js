@@ -465,8 +465,11 @@ async function fetchPolymarket() {
         const awayShort = g.away.split(' ').pop().toLowerCase();
         const homeShort = g.home.split(' ').pop().toLowerCase();
         const gd = (Array.isArray(gameData) ? gameData : []).find(gd => {
-          if (!gd || !gd.home || !gd.away) return false;
-          const h = (typeof teamName==='function' ? teamName(gd.home) : gd.home || '').toLowerCase();
+          if (!gd) return false;
+          // gameData.home = abbrev (LAL), label = "Lakers vs Heat"
+          const label = (gd.label || '').toLowerCase();
+          if (label.includes(homeShort) || label.includes(awayShort)) return true;
+          const h = (gd.home ? (typeof teamName==='function' ? (teamName(gd.home)||gd.home) : gd.home) : '').toLowerCase();
           const a = (typeof teamName==='function' ? teamName(gd.away) : gd.away || '').toLowerCase();
           return h.includes(homeShort) || a.includes(awayShort);
         });
