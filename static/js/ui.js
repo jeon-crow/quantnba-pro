@@ -66,39 +66,88 @@ function openAlertPanel() { showSection('alerts', null); }
 
 // ── Live Games ──
 function renderLiveGames() {
-  const el = document.getElementById('liveGamesRow');
-  if (!el) return;
-  const live = gameData.filter(g => g.status === 'live').slice(0, 3);
+  // Render ke dashboard (maks 3 game live)
+  const elDash = document.getElementById('liveGamesRow');
+  // Render ke halaman Live Games (semua game hari ini)
+  const elLive = document.getElementById('liveGamesRow2');
 
-  if (!live.length) {
-    el.innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;font-size:11px;' +
-      'color:var(--t2);padding:20px">No live games right now</div>';
-    return;
+  // Game live = status 'live' ATAU _live=true ATAU state 'in' dari ESPN
+  const liveGames = gameData.filter(g =>
+    g.status === 'live' || g._live === true || g.status === 'in'
+  );
+  // Semua game hari ini (termasuk upcoming dan final)
+  const allGames = gameData;
+
+  // Helper render satu game card
+  function makeGameCard(g, showScore) {
+    const { finalProb } = computeModelProb(g);
+    const prob     = Math.round(finalProb * 100);
+    const hs       = (g._homeScore !== null && g._homeScore !== undefined) ? g._homeScore : '—';
+    const as       = (g._awayScore !== null && g._awayScore !== undefined) ? g._awayScore : '—';
+    const isLive   = g.status === 'live' || g._live === true;
+    const isFinal  = g.status === 'final' || g.status === 'post';
+    const clock    = g._clock || '';
+    const period   = g._period || 0;
+
+    let statusBadge = '';
+    if (isLive) {
+      statusBadge = '<span style="color:var(--red);font-weight:700;font-size:9px;' +
+        'display:flex;align-items:center;gap:3px">' +
+        '<div class="dot-pulse" style="width:5px;height:5px"></div>' +
+        'Q' + period + (clock ? ' ' + clock : '') + '</span>';
+    } else if (isFinal) {
+      statusBadge = '<span style="font-size:9px;color:var(--t2)">Final</span>';
+    } else {
+      statusBadge = '<span style="font-size:10px;color:var(--t2)">' + sanitize(g.time) + '</span>';
+    }
+
+    const borderClass = isLive ? 'live-border' : '';
+    const probColor   = prob >= 60 ? 'var(--green)' : prob <= 40 ? 'var(--red)' : 'var(--amber)';
+
+    return '<div class="game-card ' + borderClass + '">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+        statusBadge +
+        '<span style="font-size:10px;color:var(--t2)">' + sanitize(g.away) + ' @ ' + sanitize(g.home) + '</span>' +
+      '</div>' +
+      '<div class="score-row"><span class="t-abbr">' + sanitize(g.away) + '</span>' +
+        '<span class="t-score" style="color:var(--t1)">' + as + '</span></div>' +
+      '<div class="score-row"><span class="t-abbr" style="color:var(--green)">' + sanitize(g.home) + '</span>' +
+        '<span class="t-score">' + hs + '</span></div>' +
+      '<div class="prob-bar">' +
+        '<div class="pb-lbl">' +
+          '<span style="color:' + probColor + '">' + sanitize(g.home) + ' ' + prob + '%</span>' +
+          '<span>' + sanitize(g.away) + ' ' + (100-prob) + '%</span>' +
+        '</div>' +
+        '<div class="pb-track"><div class="pb-fill" style="width:' + prob +
+          '%;background:linear-gradient(90deg,var(--green),var(--blue))"></div></div>' +
+      '</div>' +
+    '</div>';
   }
 
-  el.innerHTML = live.map(g => {
-    const { finalProb } = computeModelProb(g);
-    const prob = Math.round(finalProb * 100);
-    const hs = g._homeScore || '\u2014';
-    const as = g._awayScore || '\u2014';
-    return '<div class="game-card live-border">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">' +
-        '<span style="font-size:9px;font-weight:700;color:var(--red);letter-spacing:1px;' +
-          'display:flex;align-items:center;gap:3px"><div class="dot-pulse" ' +
-          'style="width:5px;height:5px"></div>LIVE</span>' +
-        '<span style="font-size:10px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">' +
-          sanitize(g.time.replace('LIVE - ', '')) + '</span>' +
-      '</div>' +
-      '<div class="score-row"><span class="t-abbr">' + g.away + '</span>' +
-        '<span class="t-score" style="color:var(--t1)">' + as + '</span></div>' +
-      '<div class="score-row"><span class="t-abbr" style="color:var(--green)">' + g.home + '</span>' +
-        '<span class="t-score">' + hs + '</span></div>' +
-      '<div class="prob-bar"><div class="pb-lbl"><span>' + g.home + ' ' + prob + '%</span>' +
-        '<span>' + g.away + ' ' + (100 - prob) + '%</span></div>' +
-        '<div class="pb-track"><div class="pb-fill" style="width:' + prob +
-          '%;background:linear-gradient(90deg,var(--green),var(--blue))"></div></div></div>' +
-    '</div>';
-  }).join('');
+  // ── Dashboard: tampilkan max 3 game live ──
+  if (elDash) {
+    const dashGames = liveGames.length > 0 ? liveGames.slice(0, 3) : allGames.slice(0, 3);
+    if (!dashGames.length) {
+      elDash.innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;' +
+        'font-size:11px;color:var(--t2);padding:20px">Tidak ada game hari ini</div>';
+    } else {
+      elDash.innerHTML = dashGames.map(g => makeGameCard(g, true)).join('');
+    }
+  }
+
+  // ── Live Games page: tampilkan semua game ──
+  if (elLive) {
+    if (!allGames.length) {
+      elLive.innerHTML = '<div style="text-align:center;font-size:11px;' +
+        'color:var(--t2);padding:30px;grid-column:1/-1">Tidak ada game hari ini</div>';
+    } else {
+      elLive.innerHTML = allGames.map(g => makeGameCard(g, true)).join('');
+    }
+  }
+
+  // Update live count di topbar
+  const lcEl = document.getElementById('liveCount');
+  if (lcEl) lcEl.textContent = liveGames.length;
 }
 
 // ── PM Table ──

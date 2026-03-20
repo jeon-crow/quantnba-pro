@@ -194,6 +194,8 @@ async function buildGameDataFromESPN() {
         _period:     status.period || 0,
         _clock:      status.displayClock || '',
         _live:       state === 'in',
+        _isLive:     state === 'in',
+        _isLive:     state === 'in',
         _espnId:     event.id,
       });
     }
