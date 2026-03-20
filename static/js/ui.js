@@ -376,7 +376,7 @@ function renderGameSelector() {
             (typeof teamName==='function' ? teamName(g.home) : g.home) + ' vs ' +
             (typeof teamName==='function' ? teamName(g.away) : g.away) +
           '</span>' +
-          '<span style="font-family:'JetBrains Mono',monospace;font-size:12px;' +
+          '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;' +
           'font-weight:700;color:' + probColor + '">' + prob + '%</span>' +
         '</div>' +
         '<div class="gsi-meta">' +
