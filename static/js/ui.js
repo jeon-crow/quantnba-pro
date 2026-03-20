@@ -181,6 +181,7 @@ function filterPM(f, el) {
 
 function buildLiveMarkets() {
   // Gabung liveMarkets (dari Polymarket) dengan modelProb dari gameData
+  if (!Array.isArray(liveMarkets) || !liveMarkets.length) return [];
   return liveMarkets.map(m => {
     const awayShort = (m.away || '').split(' ').pop().toLowerCase();
     const homeShort = (m.home || '').split(' ').pop().toLowerCase();
@@ -217,7 +218,12 @@ function buildLiveMarkets() {
 }
 
 function renderPMTable() {
-  const markets = buildLiveMarkets();
+  const markets = (buildLiveMarkets() || []).filter(Boolean);
+  if (!markets.length) {
+    const tbody = document.getElementById('pmTbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-muted)">Loading markets...</td></tr>';
+    return;
+  }
   let data = [...markets].sort((a, b) => {
     const ea = Math.abs((a.modelProb - a.yesPrice) * 100);
     const eb = Math.abs((b.modelProb - b.yesPrice) * 100);
@@ -303,7 +309,12 @@ function renderPMTable() {
 }
 
 function renderTopAlpha() {
-  const markets = buildLiveMarkets();
+  const markets = (buildLiveMarkets() || []).filter(Boolean);
+  if (!markets.length) {
+    const tbody = document.getElementById('pmTbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-muted)">Loading markets...</td></tr>';
+    return;
+  }
   const top = markets.filter(m => Math.abs((m.modelProb - m.yesPrice) * 100) >= 5)
     .sort((a, b) => Math.abs((b.modelProb - b.yesPrice) * 100) - Math.abs((a.modelProb - a.yesPrice) * 100))
     .slice(0, 4);

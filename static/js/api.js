@@ -134,7 +134,7 @@ async function buildGameDataFromESPN() {
                          String(tomorrowD.getMonth()+1).padStart(2,'0') + '-' +
                          String(tomorrowD.getDate()).padStart(2,'0');
 
-    const allEvents = (schedData.events || []).map(ev => {
+    const allEvents = (Array.isArray(schedData.events) ? schedData.events : []).map(ev => {
       const wDate   = ev._witaDate || todayWITA;
       const isToday = wDate === todayWITA;
       const isTmr   = wDate === tomorrowWITA;
@@ -478,6 +478,7 @@ async function fetchPolymarket() {
     });
 
     // Build liveMarkets untuk Alpha Scanner
+    if (!Array.isArray(liveMarkets)) liveMarkets = [];
     liveMarkets = matched.map(g => ({
       question:       g.away + ' vs ' + g.home + ' to win',
       away:           g.away,
