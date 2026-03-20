@@ -198,9 +198,9 @@ function buildLiveMarkets() {
       confidence = gd.confidence || gd.conf  || confidence;
     }
 
-    const isFinal  = m.is_final || m.status === 'STATUS_FINAL';
+    const isFinal  = m.is_final || m.status === 'STATUS_FINAL' || m.status === 'final';
     const isClosed = m.is_closed || false;
-    // Skip game Final yang sudah closed — harga tidak informatif
+    // Skip game Final yang sudah closed
     if (isClosed && isFinal) return null;
     return {
       ...m,
@@ -279,8 +279,8 @@ function renderPMTable() {
         '<div class="pm-meta"><span style="color:' + liqColor + '">\u25CF</span>' +
           '<span>' + (m.liquidityLabel || m.liquidity) + '</span><span>\u00B7</span>' +
           '<span>' + sanitize(m.clock || m.status || m.closes || '') + '</span></div></td>' +
-      '<td><span class="yp">$' + m.yesPrice.toFixed(2) + '</span></td>' +
-      '<td><span class="np">$' + (m.noPrice !== undefined ? m.noPrice : (1-m.yesPrice)).toFixed(2) + '</span></td>' +
+      '<td><span class="yp">' + (m.is_final ? '—' : '$' + m.yesPrice.toFixed(2)) + '</span></td>' +
+      '<td><span class="np">' + (m.is_final ? '—' : '$' + (m.noPrice !== undefined ? m.noPrice : (1-m.yesPrice)).toFixed(2)) + '</span></td>' +
       '<td><span class="' + spreadCls + '" style="font-family:\'JetBrains Mono\',monospace;' +
         'font-size:11px">' + spreadStr + '</span></td>' +
       '<td style="text-align:right"><span class="mp">' + (m.modelProb * 100).toFixed(0) + '%</span>' +

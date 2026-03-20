@@ -182,7 +182,12 @@ async function buildGameDataFromESPN() {
         away:         awayAbbr,
         label:        homeName + ' vs ' + awayName,
         time:         timeLabel,
-        date:         (event.date || '').slice(0, 10),
+        date:         (() => {
+          // Konversi UTC ke ET untuk label tanggal yang benar
+          if (!event.date) return '';
+          const d = new Date(event.date);
+          return d.toLocaleDateString('en-CA', {timeZone:'America/New_York'});
+        })(),
         status:       state === 'in' ? 'live' : state === 'post' ? 'final' : 'upcoming',
         hoursToClose: parseFloat(hoursToClose.toFixed(1)),
         netRating:    { home: homeNet, away: awayNet },
