@@ -451,55 +451,60 @@ function estimateImpact(s) {
 async function fetchPolymarket() {
   setStatus('Polymarket', 'conn', 'Polymarket · Connecting...');
   try {
-    // Pakai fetch langsung tanpa AbortController agar tidak di-cancel refreshAll
-    const _pmRes = await fetch('/api/pm/nba-games?days=2');
+    const _pmRes = await fetch('/api/pm/nba-games');
     if (!_pmRes.ok) throw new Error('HTTP ' + _pmRes.status);
     const data = await _pmRes.json();
-    if (data.error) throw new Error(data.error);
+    if (!data || data.error) throw new Error(data?.error || 'No data');
 
-    const games   = data.games || [];
-    const matched = games.filter(g => g.pm_found);
+    const games   = Array.isArray(data.games) ? data.games : [];
+    const matched = games.filter(g => g && g.pm_found && g.away && g.home);
 
     // Update gameData dengan harga Polymarket
-    matched.forEach(g => { if (!g || !g.away || !g.home) return;
-      const awayShort = (g.away || '')?.split(' ')?.pop() || ''.toLowerCase();
-      const homeShort = (g.home || '')?.split(' ')?.pop() || ''.toLowerCase();
-      const gd = gameData.find(gd => {
-        const h = (typeof teamName==='function' ? teamName(gd.home) : gd.home).toLowerCase();
-        const a = (typeof teamName==='function' ? teamName(gd.away) : gd.away).toLowerCase();
-        return h.includes(homeShort) || a.includes(awayShort);
-      });
-      if (gd) {
-        gd.pmAwayPrice = g.away_price;
-        gd.pmHomePrice = g.home_price;
-        gd.pmVolume    = g.volume;
-        gd.pmLiquidity = g.liquidity > 50000 ? 'High'
-                       : g.liquidity > 10000 ? 'Medium' : 'Low';
+    matched.forEach(g => {
+      try {
+        const awayShort = g.away.split(' ').pop().toLowerCase();
+        const homeShort = g.home.split(' ').pop().toLowerCase();
+        const gd = (Array.isArray(gameData) ? gameData : []).find(gd => {
+          if (!gd || !gd.home || !gd.away) return false;
+          const h = (typeof teamName==='function' ? teamName(gd.home) : gd.home || '').toLowerCase();
+          const a = (typeof teamName==='function' ? teamName(gd.away) : gd.away || '').toLowerCase();
+          return h.includes(homeShort) || a.includes(awayShort);
+        });
+        if (gd) {
+          gd.pmAwayPrice = g.away_price;
+          gd.pmHomePrice = g.home_price;
+          gd.pmVolume    = g.volume || 0;
+          gd.pmLiquidity = (g.liquidity || 0) > 50000 ? 'High'
+                         : (g.liquidity || 0) > 10000 ? 'Medium' : 'Low';
+        }
+      } catch(ex) {
+        console.warn('[PM match]', ex.message, g?.away, g?.home);
       }
     });
 
-    // Build liveMarkets untuk Alpha Scanner
-    if (!Array.isArray(liveMarkets)) liveMarkets = [];
-    liveMarkets = matched.filter(g => g && g.away && g.home).map(g => ({
-      question:       (g.away || '?') + ' vs ' + (g.home || '?') + ' to win',
-      away:           g.away,
-      home:           g.home,
-      yesPrice:       g.away_price,
-      noPrice:        g.home_price,
-      awayPrice:      g.away_price,
-      homePrice:      g.home_price,
-      volume:         g.volume,
-      liquidity:      g.liquidity,
-      liquidityLabel: g.liquidity > 50000 ? 'High'
-                    : g.liquidity > 10000 ? 'Medium' : 'Low',
-      status:         g.status,
-      period:         g.period,
-      clock:          g.clock,
+    // Build liveMarkets
+    liveMarkets = matched.map(g => ({
+      question:       (g.away || '') + ' vs ' + (g.home || '') + ' to win',
+      away:           g.away || '',
+      home:           g.home || '',
+      yesPrice:       g.away_price || 0.5,
+      noPrice:        g.home_price || 0.5,
+      awayPrice:      g.away_price || 0.5,
+      homePrice:      g.home_price || 0.5,
+      volume:         g.volume || 0,
+      liquidity:      g.liquidity || 0,
+      liquidityLabel: (g.liquidity || 0) > 50000 ? 'High'
+                    : (g.liquidity || 0) > 10000 ? 'Medium' : 'Low',
+      status:         g.status || '',
+      period:         g.period || 0,
+      clock:          g.clock  || '',
+      is_final:       g.is_final || false,
+      is_closed:      g.is_closed || false,
       pm_found:       true,
       _live:          true,
     }));
 
-    AlertSystem.checkPrice(liveMarkets);
+    if (typeof AlertSystem !== 'undefined') AlertSystem.checkPrice(liveMarkets);
     renderPMTable();
     setBadge('scannerDb',  'live');
     setBadge('scannerDb2', 'live');
@@ -509,7 +514,8 @@ async function fetchPolymarket() {
 
   } catch(e) {
     console.warn('[PM]', e.message);
-    setStatus('Polymarket', 'err', 'PM · ' + e.message.slice(0,30));
+    setStatus('Polymarket', 'err', 'PM · ' + e.message.slice(0, 30));
+    if (!Array.isArray(liveMarkets)) liveMarkets = [];
     renderPMTable();
   }
 }
