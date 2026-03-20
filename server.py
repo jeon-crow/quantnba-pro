@@ -700,7 +700,7 @@ ESPN_TO_PM_ABBR = {
     'orl':'orl','cha':'cha','det':'det','mia':'mia',
     'bos':'bos','bkn':'bkn','nyk':'nyk','ind':'ind',
     'atl':'atl','tor':'tor','okc':'okc','den':'den',
-    'min':'min','por':'por','gsw':'gs','dal':'dal',
+    'min':'min','por':'por','gsw':'gsw','dal':'dal',
     'mem':'mem','hou':'hou','nop':'nop',
 }
 
