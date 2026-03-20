@@ -7,7 +7,7 @@ function logistic(x) { return 1 / (1 + Math.exp(-x)); }
 
 function ewma(arr) {
   const w = [.05, .10, .15, .25, .45];
-  return arr.reduce((s, v, i) => s + v * (w[i] || 0), 0);
+  return Array.isArray(arr) && arr.length ? arr.reduce((s, v, i) => s + v * (w[i] || 0), 0) : 0;
 }
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -116,8 +116,8 @@ function computeModelProb(g) {
 
   // Confidence = factor agreement
   const probs = Object.values(F).map(f => f.prob);
-  const mean = probs.reduce((a, b) => a + b, 0) / probs.length;
-  const variance = probs.reduce((s, p) => s + (p - mean) ** 2, 0) / probs.length;
+  const mean = probs.length ? (probs.length ? probs.reduce((a, b) => a + b, 0) / probs.length : 0) : 0.5;
+  const variance = (probs.length ? probs.reduce((s, p) => s + (p - mean) ** 2, 0) / probs.length : 0);
   const confidence = Math.round(clamp(1 - variance * 8, 0, 1) * 100);
 
   return { finalProb, F, confidence };
