@@ -198,13 +198,17 @@ function buildLiveMarkets() {
       confidence = gd.confidence || gd.conf  || confidence;
     }
 
+    const isFinal = m.is_final || m.status === 'STATUS_FINAL';
     return {
       ...m,
       modelProb:      modelProb,
       confidence:     confidence,
       liquidityLabel: m.liquidityLabel || (m.liquidity > 50000 ? 'High'
                     : m.liquidity > 10000 ? 'Medium' : 'Low'),
-      closes:         m.clock || m.status || '',
+      closes:         isFinal ? 'Final'
+                    : m.clock  ? ('Q' + m.period + ' ' + m.clock)
+                    : m.status || '',
+      is_final:       isFinal,
     };
   });
 }

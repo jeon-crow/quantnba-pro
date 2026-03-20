@@ -839,17 +839,29 @@ def pm_nba_games():
             away_price = float(prices[away_idx]) if len(prices) > away_idx else 0.5
             home_price = float(prices[home_idx]) if len(prices) > home_idx else 0.5
 
+            # Jika game Final dan harga resolved (0.99/0.01), pakai lastTradePrice
+            is_final  = status in ('STATUS_FINAL', 'STATUS_POSTPONED')
+            last_away = float(mk.get('lastTradePrice') or 0)
+            if is_final and (away_price > 0.95 or away_price < 0.05):
+                # Game resolved — harga tidak informatif untuk analisis
+                away_price_display = last_away if 0.05 < last_away < 0.95 else away_price
+                home_price_display = 1 - away_price_display
+            else:
+                away_price_display = away_price
+                home_price_display = home_price
+
             results.append({
                 'away': away_name, 'home': home_name,
                 'away_abbr': away_abbr, 'home_abbr': home_abbr,
                 'status': status, 'period': period, 'clock': clock,
-                'pm_found':   True,
-                'away_price': away_price,
-                'home_price': home_price,
-                'outcomes':   outcomes,
-                'volume':     float(mk.get('volume', 0) or 0),
-                'liquidity':  float(pm_data.get('liquidity', 0) or 0),
-                'slug':       f"nba-{away_abbr}-{home_abbr}-{today_et}",
+                'pm_found':    True,
+                'away_price':  away_price_display,
+                'home_price':  home_price_display,
+                'is_final':    is_final,
+                'outcomes':    outcomes,
+                'volume':      float(mk.get('volume', 0) or 0),
+                'liquidity':   float(pm_data.get('liquidity', 0) or 0),
+                'slug':        f"nba-{away_abbr}-{home_abbr}-{today_et}",
             })
 
         return jsonify({'games': results, 'count': len(results)})
