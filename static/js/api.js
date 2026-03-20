@@ -218,6 +218,7 @@ async function buildGameDataFromESPN() {
     }
 
     gameData = newGameData;
+    setStatus('ESPN', 'live', 'ESPN · ' + gameData.length + ' games');
     console.log('[ESPN] gameData dibangun: ' + gameData.length + ' game (' +
       gameData.filter(g=>g.date===_todayISO).length + ' hari ini, ' +
       gameData.filter(g=>g.date!==_todayISO && g.date).length + ' besok)');
