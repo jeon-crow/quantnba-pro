@@ -182,6 +182,7 @@ async function buildGameDataFromESPN() {
         away:         awayAbbr,
         label:        homeName + ' vs ' + awayName,
         time:         timeLabel,
+        date:         (event.date || '').slice(0, 10),
         status:       state === 'in' ? 'live' : state === 'post' ? 'final' : 'upcoming',
         hoursToClose: parseFloat(hoursToClose.toFixed(1)),
         netRating:    { home: homeNet, away: awayNet },
