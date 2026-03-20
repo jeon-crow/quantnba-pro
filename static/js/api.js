@@ -461,9 +461,9 @@ async function fetchPolymarket() {
     const matched = games.filter(g => g.pm_found);
 
     // Update gameData dengan harga Polymarket
-    matched.forEach(g => {
-      const awayShort = g.away.split(' ').pop().toLowerCase();
-      const homeShort = g.home.split(' ').pop().toLowerCase();
+    matched.forEach(g => { if (!g || !g.away || !g.home) return;
+      const awayShort = (g.away || '')?.split(' ')?.pop() || ''.toLowerCase();
+      const homeShort = (g.home || '')?.split(' ')?.pop() || ''.toLowerCase();
       const gd = gameData.find(gd => {
         const h = (typeof teamName==='function' ? teamName(gd.home) : gd.home).toLowerCase();
         const a = (typeof teamName==='function' ? teamName(gd.away) : gd.away).toLowerCase();
@@ -480,8 +480,8 @@ async function fetchPolymarket() {
 
     // Build liveMarkets untuk Alpha Scanner
     if (!Array.isArray(liveMarkets)) liveMarkets = [];
-    liveMarkets = matched.map(g => ({
-      question:       g.away + ' vs ' + g.home + ' to win',
+    liveMarkets = matched.filter(g => g && g.away && g.home).map(g => ({
+      question:       (g.away || '?') + ' vs ' + (g.home || '?') + ' to win',
       away:           g.away,
       home:           g.home,
       yesPrice:       g.away_price,
