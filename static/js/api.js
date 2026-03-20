@@ -470,7 +470,7 @@ async function fetchPolymarket() {
           const label = (gd.label || '').toLowerCase();
           if (label.includes(homeShort) || label.includes(awayShort)) return true;
           const h = (gd.home ? (typeof teamName==='function' ? (teamName(gd.home)||gd.home) : gd.home) : '').toLowerCase();
-          const a = (typeof teamName==='function' ? teamName(gd.away) : gd.away || '').toLowerCase();
+          const a = (gd.away ? (typeof teamName==='function' ? (teamName(gd.away)||gd.away) : gd.away) : '').toLowerCase();
           return h.includes(homeShort) || a.includes(awayShort);
         });
         if (gd) {
