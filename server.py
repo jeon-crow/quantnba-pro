@@ -694,18 +694,20 @@ def background_score_poller():
 
 # ── Polymarket NBA Games (ESPN slug matching) ─────────────────────────────────
 ESPN_TO_PM_ABBR = {
-    'wsh':'was','sa':'sas','utah':'uta','no':'nop',
-    'lal':'lal','lac':'lac','cle':'cle','chi':'chi',
-    'phx':'phx','mil':'mil','phi':'phi','sac':'sac',
-    'orl':'orl','cha':'cha','det':'det','mia':'mia',
-    'bos':'bos','bkn':'bkn','nyk':'nyk','ind':'ind',
-    'atl':'atl','tor':'tor','okc':'okc','den':'den',
-    'min':'min','por':'por','gsw':'gsw','dal':'dal',
-    'mem':'mem','hou':'hou','nop':'nop',
+    'wsh':'was',  'sa':'sas',   'utah':'uta',  'no':'nop',
+    'lal':'lal',  'lac':'lac',  'cle':'cle',   'chi':'chi',
+    'phx':'phx',  'mil':'mil',  'phi':'phi',   'sac':'sac',
+    'orl':'orl',  'cha':'cha',  'det':'det',   'mia':'mia',
+    'bos':'bos',  'bkn':'bkn',  'nyk':'nyk',   'ind':'ind',
+    'atl':'atl',  'tor':'tor',  'okc':'okc',   'den':'den',
+    'min':'min',  'por':'por',  'gsw':'gsw',   'dal':'dal',
+    'mem':'mem',  'hou':'hou',  'nop':'nop',   'gs':'gsw',
+    'ny':'nyk',   'bk':'bkn',   'sa':'sas',
 }
 
 def _espn_to_pm(abbr):
     return ESPN_TO_PM_ABBR.get(abbr.lower(), abbr.lower())
+
 
 @app.route('/api/pm/nba-games')
 def pm_nba_games():
