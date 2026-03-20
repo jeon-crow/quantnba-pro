@@ -159,10 +159,10 @@ async function buildGameDataFromESPN() {
       const gameTimeUTC = event.date ? new Date(event.date) : null;
       let timeLabel = '';
       if (gameTimeUTC) {
-        timeLabel = gameTimeUTC.toLocaleTimeString('id-ID', {
-          timeZone: 'Asia/Makassar',
-          hour: '2-digit', minute: '2-digit'
-        }) + ' WITA';
+        const witaOpts = {timeZone:'Asia/Makassar', weekday:'short',
+                          hour:'2-digit', minute:'2-digit'};
+        const witaStr  = gameTimeUTC.toLocaleString('id-ID', witaOpts);
+        timeLabel = witaStr + ' WITA';
       }
 
       const hoursToClose = gameTimeUTC
