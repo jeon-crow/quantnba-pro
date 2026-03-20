@@ -114,24 +114,45 @@ async function checkBackendStatus() {
 async function buildGameDataFromESPN() {
   try {
     // Fetch hari ini + besok
-    // Hitung tanggal ET hari ini dan besok
-    const _etNow  = new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
-    const _etTmr  = new Date(_etNow); _etTmr.setDate(_etNow.getDate() + 1);
-    const _fmt    = d => d.getFullYear() +
-                         String(d.getMonth()+1).padStart(2,'0') +
+    // Fetch hari ini + cari hari berikutnya yang ada game (maks 4 hari)
+    const _etNow = new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+    const _fmt   = d => d.getFullYear() +
+                        String(d.getMonth()+1).padStart(2,'0') +
+                        String(d.getDate()).padStart(2,'0');
+    const _isoFmt = d => d.getFullYear() + '-' +
+                         String(d.getMonth()+1).padStart(2,'0') + '-' +
                          String(d.getDate()).padStart(2,'0');
     const _todayS = _fmt(_etNow);
-    const _tmrS   = _fmt(_etTmr);
+    const _todayISO = _isoFmt(_etNow);
 
-    const [dataTodayRaw, dataTmrRaw] = await Promise.allSettled([
-      apiFetch(API.espnScoreboard() + '?dates=' + _todayS, {}, 10000),
-      apiFetch(API.espnScoreboard() + '?dates=' + _tmrS,   {}, 10000),
-    ]);
-    const dataToday = dataTodayRaw.status === 'fulfilled' ? dataTodayRaw.value : {};
-    const dataTmr   = dataTmrRaw.status  === 'fulfilled' ? dataTmrRaw.value  : {};
+    // Fetch hari ini dulu
+    const dataTodayRaw = await Promise.resolve(
+      apiFetch(API.espnScoreboard() + '?dates=' + _todayS, {}, 10000).catch(()=>({}))
+    );
+    const dataToday = dataTodayRaw || {};
+
+    // Cari hari berikutnya yang punya game (maks 4 hari ke depan)
+    let dataTmr = {};
+    let tmrISO  = '';
+    for (let d = 1; d <= 4; d++) {
+      const nextD = new Date(_etNow);
+      nextD.setDate(_etNow.getDate() + d);
+      const nextS   = _fmt(nextD);
+      const nextISO = _isoFmt(nextD);
+      try {
+        const nextData = await apiFetch(API.espnScoreboard() + '?dates=' + nextS, {}, 10000);
+        if (nextData?.events?.length) {
+          dataTmr = nextData;
+          tmrISO  = nextISO;
+          console.log('[ESPN] Game besok ditemukan: ' + nextISO + ' (' + nextData.events.length + ' games)');
+          break;
+        }
+      } catch(e) {}
+    }
+
     const allEvents = [
-      ...(dataToday.events || []),
-      ...(dataTmr.events   || []),
+      ...(dataToday.events || []).map(ev => ({...ev, _dateLabel: _todayISO})),
+      ...(dataTmr.events   || []).map(ev => ({...ev, _dateLabel: tmrISO})),
     ];
     const data = { ...dataToday, events: allEvents };
     if (data.error || !data.events?.length) {
@@ -189,12 +210,7 @@ async function buildGameDataFromESPN() {
         away:         awayAbbr,
         label:        homeName + ' vs ' + awayName,
         time:         timeLabel,
-        date:         (() => {
-          // Konversi UTC ke ET untuk label tanggal yang benar
-          if (!event.date) return '';
-          const d = new Date(event.date);
-          return d.toLocaleDateString('en-CA', {timeZone:'America/New_York'});
-        })(),
+        date:         event._dateLabel || event.date?.slice(0,10) || '',
         status:       state === 'in' ? 'live' : state === 'post' ? 'final' : 'upcoming',
         hoursToClose: parseFloat(hoursToClose.toFixed(1)),
         netRating:    { home: homeNet, away: awayNet },

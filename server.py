@@ -715,22 +715,29 @@ def pm_nba_games():
         today_et = datetime.now(ET).strftime('%Y-%m-%d')
         yest_et  = (datetime.now(ET) - timedelta(days=1)).strftime('%Y-%m-%d')
 
-        # Fetch hari ini + besok jika diminta
-        days = int(request.args.get('days', 1))
         from datetime import datetime, timezone, timedelta
         ET = timezone(timedelta(hours=-4))
 
-        all_events = []
-        for d in range(days):
-            date_str = (datetime.now(ET) + timedelta(days=d)).strftime('%Y%m%d')
-            cache_key = f'espn:scoreboard:{date_str}'
-            url       = f'{ESPN_BASE}/scoreboard?dates={date_str}'
+        # Fetch hari ini
+        today_str = datetime.now(ET).strftime('%Y%m%d')
+        today_data = cached_get(f'espn:scoreboard:{today_str}',
+                                f'{ESPN_BASE}/scoreboard?dates={today_str}', ttl=20)
+        today_events = today_data.get('events', [])
+
+        # Cari hari berikutnya yang ada game (maks 4 hari)
+        next_events = []
+        for d in range(1, 5):
+            next_date = (datetime.now(ET) + timedelta(days=d)).strftime('%Y%m%d')
             try:
-                day_data = cached_get(cache_key, url, ttl=20 if d==0 else 300)
-                all_events += day_data.get('events', [])
+                next_data = cached_get(f'espn:scoreboard:{next_date}',
+                                       f'{ESPN_BASE}/scoreboard?dates={next_date}', ttl=300)
+                if next_data.get('events'):
+                    next_events = next_data['events']
+                    break
             except:
                 pass
-        events = all_events
+
+        events = today_events + next_events
 
         results = []
         for ev in events:
