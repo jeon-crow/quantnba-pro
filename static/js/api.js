@@ -113,7 +113,20 @@ async function checkBackendStatus() {
 
 async function buildGameDataFromESPN() {
   try {
-    const data = await apiFetch(API.espnScoreboard(), {}, 10000);
+    // Fetch hari ini + besok
+    const [dataTodayRaw, dataTmrRaw] = await Promise.allSettled([
+      apiFetch(API.espnScoreboard(), {}, 10000),
+      apiFetch(API.espnScoreboard() + '?dates=' +
+        (() => { const d = new Date(); d.setDate(d.getDate()+1);
+          return d.toISOString().slice(0,10).replace(/-/g,''); })(), {}, 10000),
+    ]);
+    const dataToday = dataTodayRaw.status === 'fulfilled' ? dataTodayRaw.value : {};
+    const dataTmr   = dataTmrRaw.status  === 'fulfilled' ? dataTmrRaw.value  : {};
+    const allEvents = [
+      ...(dataToday.events || []),
+      ...(dataTmr.events   || []),
+    ];
+    const data = { ...dataToday, events: allEvents };
     if (data.error || !data.events?.length) {
       console.warn('[ESPN] Tidak ada game hari ini, pakai data fallback');
       return false;

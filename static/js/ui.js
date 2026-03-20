@@ -337,12 +337,26 @@ let selectedGame = 0;
 function renderGameSelector() {
   const el = document.getElementById('gameSelectorList');
   if (!el) return;
+  const todayET  = new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+  const todayStr = todayET.getFullYear()+'-'+String(todayET.getMonth()+1).padStart(2,'0')+'-'+String(todayET.getDate()).padStart(2,'0');
+  let lastLabel  = '';
+
   el.innerHTML = gameData.map((g, i) => {
+    const gDate     = (g.date || g.gameDate || '').slice(0,10);
+    const isToday   = !gDate || gDate === todayStr;
+    const dateLabel = isToday ? 'HARI INI' : 'BESOK';
+    const showLabel = dateLabel !== lastLabel;
+    lastLabel       = dateLabel;
+    const labelHtml = showLabel
+      ? '<div style="padding:6px 14px 2px;font-size:9px;font-weight:700;'+
+        'letter-spacing:1.5px;color:var(--text-muted);border-top:1px solid var(--border);margin-top:4px">'+
+        dateLabel+'</div>'
+      : '';
     const { finalProb, confidence } = computeModelProb(g);
     const prob = Math.round(finalProb * 100);
     const probColor = prob >= 65 ? 'var(--green)' : prob <= 40 ? 'var(--red)' : 'var(--amber)';
     const confColor = confidence >= 70 ? 'var(--green)' : confidence >= 50 ? 'var(--amber)' : 'var(--red)';
-    return '<div class="gsi' + (i === selectedGame ? ' active' : '') + '" onclick="selectGame(' + i + ')">' +
+    return labelHtml + '<div class="gsi' + (i === selectedGame ? ' active' : '') + '" onclick="selectGame(' + i + ')">' +
       '<div style="display:flex;justify-content:space-between">' +
         '<span class="gsi-matchup">' + (typeof teamName === 'function' ? teamName(g.home) : g.home) + ' vs ' + (typeof teamName === 'function' ? teamName(g.away) : g.away) + '</span>' +
         '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;font-weight:700;' +
