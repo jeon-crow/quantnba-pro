@@ -753,19 +753,39 @@ def pm_nba_games():
                     'pm_found':False})
                 continue
 
-            # Cari market moneyline (bukan Over/Under)
+            # Cari market moneyline pakai sportsMarketType='winner'
             ml_mkt = None
             for mk in pm_data.get('markets', []):
-                oc = mk.get('outcomes','[]')
-                if isinstance(oc, str):
-                    try: oc = json.loads(oc)
-                    except: oc = []
-                if (len(oc)==2 and
-                    'over'  not in str(oc).lower() and
-                    'under' not in str(oc).lower() and
-                    'yes'   not in str(oc).lower()):
+                smt = mk.get('sportsMarketType', '')
+                git = mk.get('groupItemTitle', '')
+                
+                # Prioritas 1: sportsMarketType == 'winner'
+                if smt == 'moneyline':
+                    oc = mk.get('outcomes','[]')
+                    if isinstance(oc, str):
+                        try: oc = json.loads(oc)
+                        except: oc = []
                     ml_mkt = (oc, mk)
                     break
+                    
+            # Fallback: cari yang groupItemTitle kosong dan bukan spread/total
+            if not ml_mkt:
+                for mk in pm_data.get('markets', []):
+                    git = (mk.get('groupItemTitle') or '').lower()
+                    oc  = mk.get('outcomes','[]')
+                    if isinstance(oc, str):
+                        try: oc = json.loads(oc)
+                        except: oc = []
+                    if (len(oc)==2 and
+                        'spread' not in git and
+                        'total'  not in git and
+                        'over'   not in git and
+                        'point'  not in git and
+                        'over'   not in str(oc).lower() and
+                        'under'  not in str(oc).lower() and
+                        'yes'    not in str(oc).lower()):
+                        ml_mkt = (oc, mk)
+                        break
 
             if not ml_mkt:
                 results.append({'away':away_name,'home':home_name,
